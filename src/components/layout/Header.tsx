@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Terminal, Search, User, LogOut, Settings, Wifi, WifiOff } from 'lucide-react';
+import { Globe, Search, User, LogOut, Settings, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { isOfflineMode } from '../../lib/supabase';
 
@@ -40,9 +40,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleOffline, isOffline = fal
           {/* Logo and Brand */}
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
-              <Terminal className="h-8 w-8 text-emerald-400" />
+              <Globe className="h-8 w-8 text-emerald-400" />
               <span className="text-xl font-bold text-white">
-                TechTician <span className="text-emerald-400">AMA</span>
+                AMA <span className="text-emerald-400">Global</span>
               </span>
             </div>
             

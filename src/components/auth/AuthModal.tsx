@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { X, Terminal, Mail, Lock, User, Zap, ArrowRight } from 'lucide-react';
+import { X, Globe, Mail, Lock, User, Zap, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 interface AuthModalProps {
@@ -162,7 +162,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-700">
           <div className="flex items-center space-x-2">
-            <Terminal className="h-6 w-6 text-emerald-400" />
+            <Globe className="h-6 w-6 text-emerald-400" />
             <h2 className="text-xl font-bold text-white">
               {mode === 'magic' ? 'Quick Sign In' : 
                mode === 'signin' ? 'Sign In' : 'Create Account'}
@@ -305,119 +305,119 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     placeholder="Enter your password"
                   />
                 </div>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-400">{errors.password}</p>
-                )}
-              </div>
-
-              {/* Confirm password field (signup only) */}
-              {mode === 'signup' && (
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input
-                      type="password"
-                      id="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
-                        errors.confirmPassword ? 'border-red-500' : 'border-slate-700'
-                      }`}
-                      placeholder="Confirm your password"
-                    />
-                  </div>
-                  {errors.confirmPassword && (
-                    <p className="mt-1 text-sm text-red-400">{errors.confirmPassword}</p>
+                  {errors.password && (
+                    <p className="mt-1 text-sm text-red-400">{errors.password}</p>
                   )}
                 </div>
-              )}
-            </>
-          )}
 
-          {/* Submit error */}
-          {errors.submit && (
-            <div className="p-3 bg-red-900/30 border border-red-600/30 rounded-lg">
-              <p className="text-sm text-red-400">{errors.submit}</p>
-            </div>
-          )}
-
-          {/* Submit button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
-          >
-            {loading ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <span>
-                  {mode === 'magic' ? 'Sending magic link...' :
-                   mode === 'signin' ? 'Signing in...' : 'Creating account...'}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center space-x-2">
-                <span>
-                  {mode === 'magic' ? 'Send Magic Link' :
-                   mode === 'signin' ? 'Sign In' : 'Create Account'}
-                </span>
-                {mode === 'magic' && <ArrowRight className="h-4 w-4" />}
-              </div>
-            )}
-          </button>
-        </form>
-
-        {/* Footer */}
-        <div className="px-6 pb-6 text-center">
-          <p className="text-slate-400 text-sm">
-            {mode === 'magic' ? 'Prefer traditional login? Switch to ' :
-             mode === 'signin' ? "Don't have an account? " : "Already have an account? "}
-            {mode !== 'magic' && (
-              <button
-                onClick={() => handleModeChange('magic')}
-                className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
-              >
-                Magic Link
-              </button>
-            )}
-            {mode === 'magic' && (
-              <button
-                onClick={() => handleModeChange('signin')}
-                className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
-              >
-                Sign In
-              </button>
-            )}
-            {mode === 'signin' && (
-              <>
-                {' or '}
-                <button
-                  onClick={() => handleModeChange('signup')}
-                  className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
-                >
-                  Sign Up
-                </button>
+                {/* Confirm password field (signup only) */}
+                {mode === 'signup' && (
+                  <div>
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        type="password"
+                        id="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                          errors.confirmPassword ? 'border-red-500' : 'border-slate-700'
+                        }`}
+                        placeholder="Confirm your password"
+                      />
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="mt-1 text-sm text-red-400">{errors.confirmPassword}</p>
+                    )}
+                  </div>
+                )}
               </>
             )}
-            {mode === 'signup' && (
-              <>
-                {' or '}
+
+            {/* Submit error */}
+            {errors.submit && (
+              <div className="p-3 bg-red-900/30 border border-red-600/30 rounded-lg">
+                <p className="text-sm text-red-400">{errors.submit}</p>
+              </div>
+            )}
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>
+                    {mode === 'magic' ? 'Sending magic link...' :
+                     mode === 'signin' ? 'Signing in...' : 'Creating account...'}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center space-x-2">
+                  <span>
+                    {mode === 'magic' ? 'Send Magic Link' :
+                     mode === 'signin' ? 'Sign In' : 'Create Account'}
+                  </span>
+                  {mode === 'magic' && <ArrowRight className="h-4 w-4" />}
+                </div>
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="px-6 pb-6 text-center">
+            <p className="text-slate-400 text-sm">
+              {mode === 'magic' ? 'Prefer traditional login? Switch to ' :
+               mode === 'signin' ? "Don't have an account? " : "Already have an account? "}
+              {mode !== 'magic' && (
+                <button
+                  onClick={() => handleModeChange('magic')}
+                  className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
+                >
+                  Magic Link
+                </button>
+              )}
+              {mode === 'magic' && (
                 <button
                   onClick={() => handleModeChange('signin')}
                   className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
                 >
                   Sign In
                 </button>
-              </>
-            )}
-          </p>
+              )}
+              {mode === 'signin' && (
+                <>
+                  {' or '}
+                  <button
+                    onClick={() => handleModeChange('signup')}
+                    className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
+              {mode === 'signup' && (
+                <>
+                  {' or '}
+                  <button
+                    onClick={() => handleModeChange('signin')}
+                    className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
+                  >
+                    Sign In
+                  </button>
+                </>
+              )}
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };

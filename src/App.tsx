@@ -1,6 +1,6 @@
 /**
  * Main application component
- * Orchestrates the entire AMA application with routing and state management
+ * Orchestrates the entire AMA Global application with routing and state management
  */
 
 import React, { useState } from 'react';
@@ -88,16 +88,16 @@ function AppContent() {
           <div className="bg-gradient-to-r from-emerald-900/20 to-slate-900/20 border border-emerald-600/20 rounded-xl p-6 mb-8">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-white mb-2">
-                Welcome to TechTician AMA
+                Welcome to AMA Global
               </h2>
               <p className="text-slate-300 mb-4">
-                Get expert technical help from a Navy veteran turned tech wizard. Ask anything about technology, security, or development.
+                The universal platform for live Q&A sessions. Perfect for news channels, celebrities, influencers, and anyone wanting to engage with their audience through real-time questions.
               </p>
               <button
                 onClick={() => setShowAuthModal(true)}
                 className="inline-flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
               >
-                Sign up to ask questions
+                Join the conversation
               </button>
             </div>
           </div>

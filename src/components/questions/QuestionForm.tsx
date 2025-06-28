@@ -126,7 +126,7 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
               className={`block w-full px-4 py-3 border rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
                 errors.title ? 'border-red-500' : 'border-slate-700'
               }`}
-              placeholder="What's your technical question?"
+              placeholder="What would you like to ask?"
               maxLength={200}
             />
             <div className="flex justify-between items-center mt-1">
@@ -152,7 +152,7 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
               className={`block w-full px-4 py-3 border rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none ${
                 errors.content ? 'border-red-500' : 'border-slate-700'
               }`}
-              placeholder="Provide detailed information about your question. Include relevant context, what you've tried, and specific technical details..."
+              placeholder="Provide detailed information about your question. Include relevant context and any specific details that would help provide a better answer..."
               maxLength={2000}
             />
             <div className="flex justify-between items-center mt-1">
@@ -181,7 +181,7 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
                   onChange={(e) => handleInputChange('tagInput', e.target.value)}
                   onKeyPress={handleTagInputKeyPress}
                   className="block w-full pl-10 pr-3 py-2 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Add tags (e.g., javascript, react, css)"
+                  placeholder="Add tags (e.g., live, breaking-news, interview)"
                   maxLength={20}
                 />
               </div>
