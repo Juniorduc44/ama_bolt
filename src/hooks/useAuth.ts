@@ -1,6 +1,6 @@
 /**
  * Authentication hook that handles both online and offline modes
- * Provides seamless user management across different environments
+ * Provides seamless user management across different environments with magic link support
  */
 
 import { useState, useEffect, createContext, useContext } from 'react';
@@ -12,6 +12,7 @@ const AuthContext = createContext<{
   auth: AuthState;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, username: string) => Promise<void>;
+  signInWithMagicLink: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 } | null>(null);
 
@@ -179,7 +180,12 @@ export const useAuthProvider = () => {
         // Online mode: Supabase signup
         const { data, error } = await supabase.auth.signUp({
           email,
-          password
+          password,
+          options: {
+            data: {
+              username: username
+            }
+          }
         });
 
         if (error) throw error;
@@ -206,6 +212,61 @@ export const useAuthProvider = () => {
         ...prev,
         loading: false,
         error: error instanceof Error ? error.message : 'Sign up failed'
+      }));
+      throw error;
+    }
+  };
+
+  const signInWithMagicLink = async (email: string) => {
+    setAuth(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      if (isOfflineMode()) {
+        // Offline mode: simulate magic link by creating/finding user
+        const users = await offlineDB.getUsers();
+        let user = users.find(u => u.email === email);
+        
+        if (!user) {
+          // Create new user with email as username base
+          const username = email.split('@')[0];
+          user = await offlineDB.saveUser({
+            email,
+            username,
+            reputation: 0,
+            created_at: new Date().toISOString(),
+            is_moderator: false
+          });
+        }
+
+        // In offline mode, we'll simulate the magic link success immediately
+        localStorage.setItem('offline_current_user', JSON.stringify(user));
+        setAuth({
+          user,
+          loading: false,
+          error: null
+        });
+      } else {
+        // Online mode: Send magic link via Supabase
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: true,
+            data: {
+              username: email.split('@')[0] // Use email prefix as default username
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        // Don't set loading to false here - the magic link flow will handle auth state
+        setAuth(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      setAuth(prev => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Magic link failed'
       }));
       throw error;
     }
@@ -239,6 +300,7 @@ export const useAuthProvider = () => {
     auth,
     signIn,
     signUp,
+    signInWithMagicLink,
     signOut,
     AuthContext
   };
