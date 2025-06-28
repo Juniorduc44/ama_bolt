@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Terminal, Search, User, LogOut, Settings, Sun, Moon } from 'lucide-react';
+import { Terminal, Search, User, LogOut, Settings, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { isOfflineMode } from '../../lib/supabase';
 
@@ -77,10 +77,24 @@ export const Header: React.FC<HeaderProps> = ({ onToggleOffline, isOffline = fal
             {onToggleOffline && (
               <button
                 onClick={onToggleOffline}
-                className="p-2 text-slate-400 hover:text-white transition-colors duration-200"
-                title={isOffline ? "Switch to Online" : "Switch to Offline"}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-all duration-200 ${
+                  isOffline 
+                    ? 'bg-yellow-900/30 border-yellow-600/50 text-yellow-400 hover:bg-yellow-900/40' 
+                    : 'bg-emerald-900/30 border-emerald-600/50 text-emerald-400 hover:bg-emerald-900/40'
+                }`}
+                title={isOffline ? "Switch to Online Mode" : "Switch to Offline Mode"}
               >
-                {isOffline ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {isOffline ? (
+                  <>
+                    <WifiOff className="h-4 w-4" />
+                    <span className="hidden sm:block text-sm font-medium">Offline</span>
+                  </>
+                ) : (
+                  <>
+                    <Wifi className="h-4 w-4" />
+                    <span className="hidden sm:block text-sm font-medium">Online</span>
+                  </>
+                )}
               </button>
             )}
 
