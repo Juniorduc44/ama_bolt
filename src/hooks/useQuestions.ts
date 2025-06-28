@@ -39,16 +39,35 @@ export const useQuestions = () => {
         setQuestions(questionsWithAuthors);
       } else {
         // Online mode: load from Supabase
-        const { data, error } = await supabase
+        // First get questions
+        const { data: questionsData, error: questionsError } = await supabase
           .from('questions')
-          .select(`
-            *,
-            author:profiles(*)
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        setQuestions(data || []);
+        if (questionsError) throw questionsError;
+
+        // Then get profiles for the authors
+        const authorIds = [...new Set(questionsData?.map(q => q.author_id).filter(Boolean))];
+        
+        let profilesData = [];
+        if (authorIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', authorIds);
+
+          if (profilesError) throw profilesError;
+          profilesData = profiles || [];
+        }
+
+        // Combine questions with author profiles
+        const questionsWithAuthors = questionsData?.map(question => ({
+          ...question,
+          author: profilesData.find(profile => profile.id === question.author_id)
+        })) || [];
+
+        setQuestions(questionsWithAuthors);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load questions');
@@ -84,16 +103,25 @@ export const useQuestions = () => {
         const { data, error } = await supabase
           .from('questions')
           .insert([questionData])
-          .select(`
-            *,
-            author:profiles(*)
-          `)
+          .select('*')
           .single();
 
         if (error) throw error;
         
-        setQuestions(prev => [data, ...prev]);
-        return data;
+        // Get the author profile for the new question
+        const { data: authorProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', auth.user.id)
+          .single();
+
+        const questionWithAuthor = {
+          ...data,
+          author: authorProfile
+        };
+        
+        setQuestions(prev => [questionWithAuthor, ...prev]);
+        return questionWithAuthor;
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create question';
