@@ -1,6 +1,6 @@
 /**
  * Authentication modal component
- * Handles user login and registration with magic link as default and expandable auth options
+ * Handles user login and registration with email/password as default for signup and expandable auth options
  */
 
 import React, { useState } from 'react';
@@ -19,7 +19,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialMode = 'signin'
 }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
-  const [authMethod, setAuthMethod] = useState<'magic' | 'email' | 'github'>('magic');
+  // Default to email for signup, magic for signin
+  const [authMethod, setAuthMethod] = useState<'magic' | 'email' | 'github'>(
+    initialMode === 'signup' ? 'email' : 'magic'
+  );
   const [showAuthDropdown, setShowAuthDropdown] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -122,6 +125,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleModeChange = (newMode: 'signin' | 'signup') => {
     setMode(newMode);
+    // Set default auth method based on mode
+    setAuthMethod(newMode === 'signup' ? 'email' : 'magic');
     setErrors({});
     setMagicLinkSent(false);
   };
@@ -142,7 +147,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       case 'github':
         return 'GitHub';
       default:
-        return 'Magic Link';
+        return 'Email & Password';
     }
   };
 
@@ -155,7 +160,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       case 'github':
         return <Globe className="h-4 w-4" />;
       default:
-        return <Zap className="h-4 w-4" />;
+        return <Mail className="h-4 w-4" />;
     }
   };
 
@@ -232,18 +237,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {showAuthDropdown && (
               <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl">
                 <button
-                  onClick={() => handleAuthMethodChange('magic')}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-slate-700 transition-colors duration-200 ${
-                    authMethod === 'magic' ? 'bg-slate-700' : ''
-                  }`}
-                >
-                  <Zap className="h-4 w-4 text-emerald-400" />
-                  <div>
-                    <div className="text-white font-medium">Magic Link</div>
-                    <div className="text-slate-400 text-sm">Sign in with email link</div>
-                  </div>
-                </button>
-                <button
                   onClick={() => handleAuthMethodChange('email')}
                   className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-slate-700 transition-colors duration-200 ${
                     authMethod === 'email' ? 'bg-slate-700' : ''
@@ -253,6 +246,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <div>
                     <div className="text-white font-medium">Email & Password</div>
                     <div className="text-slate-400 text-sm">Traditional login method</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleAuthMethodChange('magic')}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-slate-700 transition-colors duration-200 ${
+                    authMethod === 'magic' ? 'bg-slate-700' : ''
+                  }`}
+                >
+                  <Zap className="h-4 w-4 text-emerald-400" />
+                  <div>
+                    <div className="text-white font-medium">Magic Link</div>
+                    <div className="text-slate-400 text-sm">Sign in with email link</div>
                   </div>
                 </button>
                 <button
