@@ -12,7 +12,7 @@ export default defineConfig({
     cors: true,
     // Allow access from any origin during development
     hmr: {
-      host: 'localhost' // Keep HMR on localhost for stability
+      host: process.env.VITE_WS_HOST || 'localhost' // Use environment variable for webcontainer compatibility
     }
   },
   // Ensure environment variables are properly exposed
