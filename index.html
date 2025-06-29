@@ -11,9 +11,9 @@
     <style>
       .bolt-badge-container {
         position: fixed; 
-        top: 50%; 
+        top: 1rem; 
         left: 50%; 
-        transform: translate(-50%, -50%); 
+        transform: translateX(-50%); 
         z-index: 50;
       }
       
@@ -53,8 +53,8 @@
       }
       
       @keyframes badgePulse {
-        0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.8; }
+        0%, 100% { transform: translateX(-50%) scale(1); opacity: 1; }
+        50% { transform: translateX(-50%) scale(1.05); opacity: 0.8; }
       }
       
       .bolt-badge {
