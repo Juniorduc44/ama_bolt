@@ -5,9 +5,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, Filter, Plus, Clock, TrendingUp, Zap, User, Star, MessageCircle } from 'lucide-react';
+import { Search, Filter, Plus, Clock, TrendingUp, Zap, User, Star, MessageCircle, QrCode } from 'lucide-react';
 import { QuestionCard } from '../components/questions/QuestionCard';
 import { DonateButton } from '../components/ui/DonateButton';
+import { QRCodeModal } from '../components/ui/QRCodeModal';
 import { useQuestions } from '../hooks/useQuestions';
 import { useAuth } from '../hooks/useAuth';
 import { User as UserType } from '../types';
@@ -27,6 +28,7 @@ export const ProfilePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Load profile user
   useEffect(() => {
@@ -200,6 +202,14 @@ export const ProfilePage: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200"
+              title="Generate QR code for asking questions"
+            >
+              <QrCode className="h-4 w-4" />
+              <span className="hidden sm:block">QR Code</span>
+            </button>
             <DonateButton variant="inline" className="hidden lg:inline-flex" />
             <button
               onClick={handleAskQuestion}
@@ -320,13 +330,22 @@ export const ProfilePage: React.FC = () => {
             }
           </p>
           {!searchTerm && (
-            <button
-              onClick={handleAskQuestion}
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Ask the First Question</span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleAskQuestion}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Ask the First Question</span>
+              </button>
+              <button
+                onClick={() => setShowQRModal(true)}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                <QrCode className="h-5 w-5" />
+                <span>Generate QR Code</span>
+              </button>
+            </div>
           )}
         </div>
       ) : (
@@ -355,6 +374,13 @@ export const ProfilePage: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* QR Code Modal */}
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        targetUser={profileUser}
+      />
 
       {/* Floating Donate Button */}
       <DonateButton />

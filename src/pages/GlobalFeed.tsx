@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Users, Clock, TrendingUp, Zap, X } from 'lucide-react';
+import { Search, Filter, Users, Clock, TrendingUp, Zap, X, QrCode } from 'lucide-react';
 import { QuestionCard } from '../components/questions/QuestionCard';
 import { SearchResults } from '../components/search/SearchResults';
 import { DonateButton } from '../components/ui/DonateButton';
+import { QRCodeModal } from '../components/ui/QRCodeModal';
 import { useQuestions } from '../hooks/useQuestions';
 import { useSearch } from '../hooks/useSearch';
 import { useAuth } from '../hooks/useAuth';
@@ -22,6 +23,7 @@ export const GlobalFeed: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showFilters, setShowFilters] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Debounced search effect
   useEffect(() => {
@@ -144,6 +146,13 @@ export const GlobalFeed: React.FC = () => {
               Ask a Question
             </a>
             <button
+              onClick={() => setShowQRModal(true)}
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              <QrCode className="h-5 w-5" />
+              <span>Generate QR Code</span>
+            </button>
+            <button
               onClick={() => setShowFilters(!showFilters)}
               className="inline-flex items-center px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors duration-200"
             >
@@ -187,6 +196,15 @@ export const GlobalFeed: React.FC = () => {
               </button>
             )}
           </div>
+
+          {/* QR Code Button */}
+          <button
+            onClick={() => setShowQRModal(true)}
+            className="p-2 text-slate-400 hover:text-white border border-slate-700 hover:border-slate-600 rounded-lg transition-colors duration-200"
+            title="Generate QR Code"
+          >
+            <QrCode className="h-5 w-5" />
+          </button>
 
           {/* Filter Toggle */}
           <button
@@ -270,12 +288,21 @@ export const GlobalFeed: React.FC = () => {
           <p className="text-slate-400 mb-6">
             Be the first to ask a question on AMA Global.
           </p>
-          <a
-            href="/ask"
-            className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
-          >
-            <span>Ask a Question</span>
-          </a>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href="/ask"
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              <span>Ask a Question</span>
+            </a>
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              <QrCode className="h-5 w-5" />
+              <span>Generate QR Code</span>
+            </button>
+          </div>
         </div>
       ) : !searchTerm ? (
         <div className="space-y-6">
@@ -291,6 +318,12 @@ export const GlobalFeed: React.FC = () => {
           ))}
         </div>
       ) : null}
+
+      {/* QR Code Modal */}
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+      />
 
       {/* Floating Donate Button */}
       <DonateButton />
