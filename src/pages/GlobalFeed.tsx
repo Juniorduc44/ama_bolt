@@ -225,7 +225,7 @@ export const GlobalFeed: React.FC = () => {
         <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-3">
           <p className="text-slate-400 text-sm">
             <span className="text-emerald-400 font-medium">Search tips:</span> 
-            {' '}Try searching for usernames like "john" or "@john", question content, or tags. 
+            {' '}Try searching for usernames like "john\" or "@john", question content, or tags. 
             Showing {filteredQuestions.length} result{filteredQuestions.length !== 1 ? 's' : ''} for "{searchTerm}".
           </p>
         </div>
