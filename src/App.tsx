@@ -110,10 +110,10 @@ function AppContent() {
 }
 
 function App() {
-  const { auth, signIn, signUp, signInWithMagicLink, resetPassword, updateProfile, signOut, AuthContext } = useAuthProvider();
+  const { auth, signIn, signUp, signInWithMagicLink, signInWithGoogle, signInWithGitHub, resetPassword, updateProfile, signOut, AuthContext } = useAuthProvider();
 
   return (
-    <AuthContext.Provider value={{ auth, signIn, signUp, signInWithMagicLink, resetPassword, updateProfile, signOut }}>
+    <AuthContext.Provider value={{ auth, signIn, signUp, signInWithMagicLink, signInWithGoogle, signInWithGitHub, resetPassword, updateProfile, signOut }}>
       <Router>
         <AppContent />
       </Router>
