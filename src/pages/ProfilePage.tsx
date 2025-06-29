@@ -5,8 +5,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, Filter, Plus, Clock, TrendingUp, Zap, User, Star, MessageCircle } from 'lucide-react';
+import { Search, Filter, Plus, Clock, TrendingUp, Zap, User, Star, MessageCircle, QrCode } from 'lucide-react';
 import { QuestionCard } from '../components/questions/QuestionCard';
+import { DonateButton } from '../components/ui/DonateButton';
+import { QRCodeModal } from '../components/ui/QRCodeModal';
 import { useQuestions } from '../hooks/useQuestions';
 import { useAuth } from '../hooks/useAuth';
 import { User as UserType } from '../types';
@@ -26,6 +28,7 @@ export const ProfilePage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Load profile user
   useEffect(() => {
@@ -58,10 +61,16 @@ export const ProfilePage: React.FC = () => {
     loadProfile();
   }, [username]);
 
-  // Filter questions for this specific user
-  const userQuestions = questions.filter(question => 
-    question.author?.username === username
-  );
+  // Filter questions for this specific user - include both authored questions and questions asked TO this user
+  const userQuestions = questions.filter(question => {
+    // Questions authored by this user
+    const isAuthor = question.author?.username === username;
+    
+    // Questions asked TO this user (check if title contains "asked to @username")
+    const isTargetUser = question.title.includes(`(asked to @${username})`);
+    
+    return isAuthor || isTargetUser;
+  });
 
   // Filter questions based on search term
   const filteredQuestions = userQuestions.filter(question => {
@@ -110,8 +119,7 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleAnswerClick = (questionId: string) => {
-    console.log('View answers for question:', questionId);
-    // TODO: Navigate to question detail page
+    navigate(`/question/${questionId}`);
   };
 
   const handleAskQuestion = () => {
@@ -154,6 +162,10 @@ export const ProfilePage: React.FC = () => {
     );
   }
 
+  // Separate questions into authored and received
+  const authoredQuestions = userQuestions.filter(q => q.author?.username === username);
+  const receivedQuestions = userQuestions.filter(q => q.title.includes(`(asked to @${username})`));
+
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -179,28 +191,49 @@ export const ProfilePage: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-1 text-slate-400">
                   <MessageCircle className="h-4 w-4" />
-                  <span className="text-sm">{userQuestions.length} questions asked</span>
+                  <span className="text-sm">{authoredQuestions.length} questions asked</span>
+                </div>
+                <div className="flex items-center space-x-1 text-slate-400">
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="text-sm">{receivedQuestions.length} questions received</span>
                 </div>
               </div>
             </div>
           </div>
           
-          <button
-            onClick={handleAskQuestion}
-            className="flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Ask @{profileUser.username}</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200"
+              title="Generate QR code for asking questions"
+            >
+              <QrCode className="h-4 w-4" />
+              <span className="hidden sm:block">QR Code</span>
+            </button>
+            <DonateButton variant="inline" className="hidden lg:inline-flex" />
+            <button
+              onClick={handleAskQuestion}
+              className="flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Ask @{profileUser.username}</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Header with Search and Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-4">
-          <h2 className="text-2xl font-bold text-white">Questions for @{profileUser.username}</h2>
+          <h2 className="text-2xl font-bold text-white">Questions</h2>
           <span className="px-3 py-1 bg-slate-800 border border-slate-600 text-slate-300 text-sm rounded-full">
-            {userQuestions.length} questions
+            {userQuestions.length} total
+          </span>
+          <span className="px-3 py-1 bg-emerald-900/30 border border-emerald-600/30 text-emerald-400 text-sm rounded-full">
+            {receivedQuestions.length} received
+          </span>
+          <span className="px-3 py-1 bg-blue-900/30 border border-blue-600/30 text-blue-400 text-sm rounded-full">
+            {authoredQuestions.length} authored
           </span>
         </div>
 
@@ -297,29 +330,60 @@ export const ProfilePage: React.FC = () => {
             }
           </p>
           {!searchTerm && (
-            <button
-              onClick={handleAskQuestion}
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Ask the First Question</span>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleAskQuestion}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Ask the First Question</span>
+              </button>
+              <button
+                onClick={() => setShowQRModal(true)}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                <QrCode className="h-5 w-5" />
+                <span>Generate QR Code</span>
+              </button>
+            </div>
           )}
         </div>
       ) : (
         <div className="space-y-6">
-          {sortedQuestions.map((question) => (
-            <QuestionCard
-              key={question.id}
-              question={question}
-              onVote={handleVote}
-              onAnswerClick={handleAnswerClick}
-              currentUserId={auth.user?.id}
-              showTargetUser={false}
-            />
-          ))}
+          {sortedQuestions.map((question) => {
+            const isReceivedQuestion = question.title.includes(`(asked to @${username})`);
+            return (
+              <div key={question.id} className="relative">
+                {/* Question Type Indicator */}
+                {isReceivedQuestion && (
+                  <div className="absolute -top-2 -right-2 z-10">
+                    <span className="px-2 py-1 bg-emerald-600 text-white text-xs rounded-full">
+                      Asked to you
+                    </span>
+                  </div>
+                )}
+                <QuestionCard
+                  question={question}
+                  onVote={handleVote}
+                  onAnswerClick={handleAnswerClick}
+                  currentUserId={auth.user?.id}
+                  showTargetUser={false}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
+
+      {/* QR Code Modal */}
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        targetUser={profileUser}
+      />
+
+      {/* Floating Donate Button */}
+      <DonateButton />
     </div>
   );
 };

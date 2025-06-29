@@ -13,6 +13,8 @@ const AuthContext = createContext<{
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithGitHub: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
   signOut: () => Promise<void>;
@@ -61,9 +63,13 @@ export const useAuthProvider = () => {
               .eq('id', session.user.id)
               .single();
 
-            // If profile doesn't exist, create it (fallback for magic link users)
+            // If profile doesn't exist, create it (fallback for OAuth users)
             if (error && error.code === 'PGRST116') {
-              const username = session.user.email?.split('@')[0] || 'user';
+              const username = session.user.user_metadata?.username || 
+                              session.user.user_metadata?.full_name?.replace(/\s+/g, '').toLowerCase() ||
+                              session.user.email?.split('@')[0] || 
+                              'user';
+              
               const { data: newProfile, error: insertError } = await supabase
                 .from('profiles')
                 .insert([
@@ -72,7 +78,8 @@ export const useAuthProvider = () => {
                     email: session.user.email!,
                     username: username,
                     reputation: 0,
-                    is_moderator: false
+                    is_moderator: false,
+                    avatar_url: session.user.user_metadata?.avatar_url || null
                   }
                 ])
                 .select()
@@ -95,6 +102,7 @@ export const useAuthProvider = () => {
           }
         }
       } catch (error) {
+        console.error('Auth initialization error:', error);
         if (mounted) {
           setAuth({
             user: null,
@@ -114,18 +122,22 @@ export const useAuthProvider = () => {
           if (event === 'SIGNED_OUT' || !session) {
             setAuth({ user: null, loading: false, error: null });
           } else if (session?.user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+            try {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
 
-            if (profile && mounted) {
-              setAuth({
-                user: profile,
-                loading: false,
-                error: null
-              });
+              if (profile && mounted) {
+                setAuth({
+                  user: profile,
+                  loading: false,
+                  error: null
+                });
+              }
+            } catch (error) {
+              console.error('Profile fetch error:', error);
             }
           }
         }
@@ -172,6 +184,7 @@ export const useAuthProvider = () => {
         // Auth state will be updated by the auth state change listener
       }
     } catch (error) {
+      console.error('Sign in error:', error);
       setAuth(prev => ({
         ...prev,
         loading: false,
@@ -219,6 +232,7 @@ export const useAuthProvider = () => {
         setAuth(prev => ({ ...prev, loading: false }));
       }
     } catch (error) {
+      console.error('Sign up error:', error);
       setAuth(prev => ({
         ...prev,
         loading: false,
@@ -258,6 +272,7 @@ export const useAuthProvider = () => {
         });
       } else {
         // Online mode: Send magic link via Supabase with proper redirect URL
+        // Use the current origin to ensure it works from any host
         const redirectTo = `${window.location.origin}/auth/callback`;
         
         const { error } = await supabase.auth.signInWithOtp({
@@ -277,10 +292,71 @@ export const useAuthProvider = () => {
         setAuth(prev => ({ ...prev, loading: false }));
       }
     } catch (error) {
+      console.error('Magic link error:', error);
       setAuth(prev => ({
         ...prev,
         loading: false,
         error: error instanceof Error ? error.message : 'Magic link failed'
+      }));
+      throw error;
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    setAuth(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      if (isOfflineMode()) {
+        throw new Error('OAuth authentication is not available in offline mode');
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) throw error;
+
+      // Auth state will be updated by the auth state change listener
+      setAuth(prev => ({ ...prev, loading: false }));
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      setAuth(prev => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Google sign in failed'
+      }));
+      throw error;
+    }
+  };
+
+  const signInWithGitHub = async () => {
+    setAuth(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      if (isOfflineMode()) {
+        throw new Error('OAuth authentication is not available in offline mode');
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) throw error;
+
+      // Auth state will be updated by the auth state change listener
+      setAuth(prev => ({ ...prev, loading: false }));
+    } catch (error) {
+      console.error('GitHub sign in error:', error);
+      setAuth(prev => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error.message : 'GitHub sign in failed'
       }));
       throw error;
     }
@@ -295,6 +371,7 @@ export const useAuthProvider = () => {
         throw new Error('Password reset not available in offline mode');
       } else {
         // Online mode: Send password reset email with proper redirect URL
+        // Use the current origin to ensure it works from any host
         const redirectTo = `${window.location.origin}/auth/reset-password`;
         
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -305,6 +382,7 @@ export const useAuthProvider = () => {
         setAuth(prev => ({ ...prev, loading: false }));
       }
     } catch (error) {
+      console.error('Password reset error:', error);
       setAuth(prev => ({
         ...prev,
         loading: false,
@@ -354,6 +432,7 @@ export const useAuthProvider = () => {
         });
       }
     } catch (error) {
+      console.error('Profile update error:', error);
       setAuth(prev => ({
         ...prev,
         loading: false,
@@ -379,6 +458,7 @@ export const useAuthProvider = () => {
         error: null
       });
     } catch (error) {
+      console.error('Sign out error:', error);
       setAuth(prev => ({
         ...prev,
         loading: false,
@@ -392,6 +472,8 @@ export const useAuthProvider = () => {
     signIn,
     signUp,
     signInWithMagicLink,
+    signInWithGoogle,
+    signInWithGitHub,
     resetPassword,
     updateProfile,
     signOut,

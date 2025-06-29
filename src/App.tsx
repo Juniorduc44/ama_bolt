@@ -9,17 +9,23 @@ import { Header } from './components/layout/Header';
 import { GlobalFeed } from './pages/GlobalFeed';
 import { ProfilePage } from './pages/ProfilePage';
 import { AskQuestionPage } from './pages/AskQuestionPage';
+import { TagPage } from './pages/TagPage';
+import { QuestionDetailPage } from './pages/QuestionDetailPage';
+import { SharePage } from './pages/SharePage';
 import { AuthCallback } from './pages/AuthCallback';
 import { ResetPassword } from './pages/ResetPassword';
 import { AuthModal } from './components/auth/AuthModal';
 import { ProfileSetupModal } from './components/auth/ProfileSetupModal';
+import { ToastContainer } from './components/ui/Toast';
 import { useAuthProvider } from './hooks/useAuth';
+import { useToast } from './hooks/useToast';
 import { useState, useEffect } from 'react';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const { auth } = useAuthProvider();
+  const { toasts, removeToast } = useToast();
 
   // Check if user needs to complete profile setup (magic link users)
   useEffect(() => {
@@ -52,6 +58,9 @@ function AppContent() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />
         
+        {/* Share page (minimal header) */}
+        <Route path="/share/:shareCode" element={<SharePage />} />
+        
         {/* Main app routes (with header) */}
         <Route path="/*" element={
           <>
@@ -60,6 +69,8 @@ function AppContent() {
               <Routes>
                 <Route path="/" element={<GlobalFeed />} />
                 <Route path="/ask" element={<AskQuestionPage />} />
+                <Route path="/question/:questionId" element={<QuestionDetailPage />} />
+                <Route path="/tag/:tagName" element={<TagPage />} />
                 <Route path="/:username" element={<ProfilePage />} />
               </Routes>
             </main>
@@ -80,6 +91,9 @@ function AppContent() {
         onComplete={handleProfileSetupComplete}
       />
 
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
       {/* Loading Overlay */}
       {auth.loading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -96,10 +110,10 @@ function AppContent() {
 }
 
 function App() {
-  const { auth, signIn, signUp, signInWithMagicLink, resetPassword, updateProfile, signOut, AuthContext } = useAuthProvider();
+  const { auth, signIn, signUp, signInWithMagicLink, signInWithGoogle, signInWithGitHub, resetPassword, updateProfile, signOut, AuthContext } = useAuthProvider();
 
   return (
-    <AuthContext.Provider value={{ auth, signIn, signUp, signInWithMagicLink, resetPassword, updateProfile, signOut }}>
+    <AuthContext.Provider value={{ auth, signIn, signUp, signInWithMagicLink, signInWithGoogle, signInWithGitHub, resetPassword, updateProfile, signOut }}>
       <Router>
         <AppContent />
       </Router>

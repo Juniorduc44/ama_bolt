@@ -104,11 +104,7 @@ export const AskQuestionPage: React.FC = () => {
       newErrors.title = 'Title must be at least 10 characters';
     }
 
-    if (!formData.content.trim()) {
-      newErrors.content = 'Content is required';
-    } else if (formData.content.length < 20) {
-      newErrors.content = 'Content must be at least 20 characters';
-    }
+    // Content is now optional - no minimum requirement
 
     // If not authenticated and not anonymous, require name
     if (!auth.user && !formData.isAnonymous && !formData.askerName.trim()) {
@@ -129,7 +125,13 @@ export const AskQuestionPage: React.FC = () => {
       // Create question with target user information
       const questionTitle = `${formData.title} (asked to @${targetUser!.username})`;
       
-      await createQuestion(questionTitle, formData.content, tags);
+      await createQuestion(
+        questionTitle, 
+        formData.content.trim(), 
+        tags,
+        formData.askerName,
+        formData.isAnonymous
+      );
       
       // Navigate to the target user's profile
       navigate(`/${targetUser!.username}`);
@@ -191,7 +193,7 @@ export const AskQuestionPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-white">Ask a Question</h1>
           <p className="text-slate-400 mt-1">
-            Ask anyone on AMA Global - authentication optional
+            Ask anyone on AMA Global - no account required
           </p>
         </div>
       </div>
@@ -298,6 +300,17 @@ export const AskQuestionPage: React.FC = () => {
                   )}
                 </div>
               )}
+              
+              <div className="mt-3 p-3 bg-emerald-900/20 border border-emerald-600/30 rounded-lg">
+                <p className="text-emerald-400 text-sm font-medium mb-1">Public Questions</p>
+                <p className="text-slate-300 text-sm">
+                  All questions are public and can be viewed by anyone. 
+                  {formData.isAnonymous 
+                    ? ' Your question will be posted anonymously.' 
+                    : ' Your name will be displayed with the question.'
+                  }
+                </p>
+              </div>
             </div>
           )}
 
@@ -330,7 +343,7 @@ export const AskQuestionPage: React.FC = () => {
           {/* Question Content */}
           <div>
             <label htmlFor="content" className="block text-sm font-medium text-slate-300 mb-2">
-              Question Details *
+              Question Details (Optional)
             </label>
             <textarea
               id="content"
@@ -340,7 +353,7 @@ export const AskQuestionPage: React.FC = () => {
               className={`block w-full px-4 py-3 border rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none ${
                 errors.content ? 'border-red-500' : 'border-slate-700'
               }`}
-              placeholder="Provide detailed information about your question. Include relevant context and any specific details that would help provide a better answer..."
+              placeholder="Provide additional details about your question if needed. This field is optional - you can leave it blank if your title says it all."
               maxLength={2000}
             />
             <div className="flex justify-between items-center mt-1">
