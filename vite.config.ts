@@ -12,7 +12,9 @@ export default defineConfig({
     cors: true,
     // Allow access from any origin during development
     hmr: {
-      host: process.env.VITE_WS_HOST || 'localhost' // Use environment variable for webcontainer compatibility
+      host: process.env.HOST || process.env.VITE_WS_HOST || 'localhost',
+      protocol: 'wss',
+      clientPort: 443
     }
   },
   // Ensure environment variables are properly exposed
