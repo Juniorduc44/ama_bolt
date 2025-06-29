@@ -58,10 +58,16 @@ export const ProfilePage: React.FC = () => {
     loadProfile();
   }, [username]);
 
-  // Filter questions for this specific user
-  const userQuestions = questions.filter(question => 
-    question.author?.username === username
-  );
+  // Filter questions for this specific user - include both authored questions and questions asked TO this user
+  const userQuestions = questions.filter(question => {
+    // Questions authored by this user
+    const isAuthor = question.author?.username === username;
+    
+    // Questions asked TO this user (check if title contains "asked to @username")
+    const isTargetUser = question.title.includes(`(asked to @${username})`);
+    
+    return isAuthor || isTargetUser;
+  });
 
   // Filter questions based on search term
   const filteredQuestions = userQuestions.filter(question => {
@@ -110,8 +116,7 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleAnswerClick = (questionId: string) => {
-    console.log('View answers for question:', questionId);
-    // TODO: Navigate to question detail page
+    navigate(`/question/${questionId}`);
   };
 
   const handleAskQuestion = () => {
@@ -154,6 +159,10 @@ export const ProfilePage: React.FC = () => {
     );
   }
 
+  // Separate questions into authored and received
+  const authoredQuestions = userQuestions.filter(q => q.author?.username === username);
+  const receivedQuestions = userQuestions.filter(q => q.title.includes(`(asked to @${username})`));
+
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -179,7 +188,11 @@ export const ProfilePage: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-1 text-slate-400">
                   <MessageCircle className="h-4 w-4" />
-                  <span className="text-sm">{userQuestions.length} questions asked</span>
+                  <span className="text-sm">{authoredQuestions.length} questions asked</span>
+                </div>
+                <div className="flex items-center space-x-1 text-slate-400">
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="text-sm">{receivedQuestions.length} questions received</span>
                 </div>
               </div>
             </div>
@@ -198,9 +211,15 @@ export const ProfilePage: React.FC = () => {
       {/* Header with Search and Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-4">
-          <h2 className="text-2xl font-bold text-white">Questions for @{profileUser.username}</h2>
+          <h2 className="text-2xl font-bold text-white">Questions</h2>
           <span className="px-3 py-1 bg-slate-800 border border-slate-600 text-slate-300 text-sm rounded-full">
-            {userQuestions.length} questions
+            {userQuestions.length} total
+          </span>
+          <span className="px-3 py-1 bg-emerald-900/30 border border-emerald-600/30 text-emerald-400 text-sm rounded-full">
+            {receivedQuestions.length} received
+          </span>
+          <span className="px-3 py-1 bg-blue-900/30 border border-blue-600/30 text-blue-400 text-sm rounded-full">
+            {authoredQuestions.length} authored
           </span>
         </div>
 
@@ -308,16 +327,28 @@ export const ProfilePage: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {sortedQuestions.map((question) => (
-            <QuestionCard
-              key={question.id}
-              question={question}
-              onVote={handleVote}
-              onAnswerClick={handleAnswerClick}
-              currentUserId={auth.user?.id}
-              showTargetUser={false}
-            />
-          ))}
+          {sortedQuestions.map((question) => {
+            const isReceivedQuestion = question.title.includes(`(asked to @${username})`);
+            return (
+              <div key={question.id} className="relative">
+                {/* Question Type Indicator */}
+                {isReceivedQuestion && (
+                  <div className="absolute -top-2 -right-2 z-10">
+                    <span className="px-2 py-1 bg-emerald-600 text-white text-xs rounded-full">
+                      Asked to you
+                    </span>
+                  </div>
+                )}
+                <QuestionCard
+                  question={question}
+                  onVote={handleVote}
+                  onAnswerClick={handleAnswerClick}
+                  currentUserId={auth.user?.id}
+                  showTargetUser={false}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
