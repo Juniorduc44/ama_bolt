@@ -10,14 +10,15 @@ import { User, AuthState } from '../types';
 
 const AuthContext = createContext<{
   auth: AuthState;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, username: string) => Promise<void>;
-  signInWithMagicLink: (email: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  signInWithGitHub: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  updateProfile: (updates: Partial<User>) => Promise<void>;
-  signOut: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
+  signInWithMagicLink: (email: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
+  signInWithGitHub: () => Promise<{ error: any }>;
+  signInWithOAuth: (provider: 'google' | 'github') => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  updateProfile: (updates: Partial<User>) => Promise<{ error: any }>;
+  signOut: () => Promise<{ error: any }>;
 } | null>(null);
 
 export const useAuth = () => {
@@ -182,8 +183,11 @@ export const useAuthProvider = () => {
             loading: false,
             error: null
           });
+          return { error: null };
         } else {
-          throw new Error('Invalid credentials');
+          const error = new Error('Invalid credentials');
+          setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+          return { error };
         }
       } else {
         // Online mode: Supabase authentication
@@ -192,17 +196,19 @@ export const useAuthProvider = () => {
           password
         });
 
-        if (error) throw error;
-        // Auth state will be updated by the auth state change listener
+        if (error) {
+          setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+          return { error };
+        }
+        
+        setAuth(prev => ({ ...prev, loading: false }));
+        return { error: null };
       }
     } catch (error) {
       console.error('Sign in error:', error);
-      setAuth(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Sign in failed'
-      }));
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Sign in failed';
+      setAuth(prev => ({ ...prev, loading: false, error: errorMessage }));
+      return { error: { message: errorMessage } };
     }
   };
 
@@ -226,6 +232,7 @@ export const useAuthProvider = () => {
           loading: false,
           error: null
         });
+        return { error: null };
       } else {
         // Online mode: Supabase signup
         const { data, error } = await supabase.auth.signUp({
@@ -238,19 +245,19 @@ export const useAuthProvider = () => {
           }
         });
 
-        if (error) throw error;
-        // Profile will be created automatically by the trigger
-        // Auth state will be updated by the auth state change listener
+        if (error) {
+          setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+          return { error };
+        }
+        
         setAuth(prev => ({ ...prev, loading: false }));
+        return { error: null };
       }
     } catch (error) {
       console.error('Sign up error:', error);
-      setAuth(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Sign up failed'
-      }));
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Sign up failed';
+      setAuth(prev => ({ ...prev, loading: false, error: errorMessage }));
+      return { error: { message: errorMessage } };
     }
   };
 
@@ -282,6 +289,7 @@ export const useAuthProvider = () => {
           loading: false,
           error: null
         });
+        return { error: null };
       } else {
         // Online mode: Send magic link via Supabase with proper redirect URL
         const redirectTo = getRedirectUrl('/auth/callback');
@@ -297,84 +305,62 @@ export const useAuthProvider = () => {
           }
         });
 
-        if (error) throw error;
+        if (error) {
+          setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+          return { error };
+        }
 
-        // Don't set loading to false here - the magic link flow will handle auth state
         setAuth(prev => ({ ...prev, loading: false }));
+        return { error: null };
       }
     } catch (error) {
       console.error('Magic link error:', error);
-      setAuth(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Magic link failed'
-      }));
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Magic link failed';
+      setAuth(prev => ({ ...prev, loading: false, error: errorMessage }));
+      return { error: { message: errorMessage } };
+    }
+  };
+
+  const signInWithOAuth = async (provider: 'google' | 'github') => {
+    setAuth(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      if (isOfflineMode()) {
+        const error = new Error('OAuth authentication is not available in offline mode');
+        setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+        return { error };
+      }
+
+      const redirectTo = getRedirectUrl('/auth/callback');
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo
+        }
+      });
+
+      if (error) {
+        setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+        return { error };
+      }
+
+      // Don't set loading to false here - the redirect will handle the auth state
+      return { error: null };
+    } catch (error) {
+      console.error(`${provider} sign in error:`, error);
+      const errorMessage = error instanceof Error ? error.message : `${provider} sign in failed`;
+      setAuth(prev => ({ ...prev, loading: false, error: errorMessage }));
+      return { error: { message: errorMessage } };
     }
   };
 
   const signInWithGoogle = async () => {
-    setAuth(prev => ({ ...prev, loading: true, error: null }));
-
-    try {
-      if (isOfflineMode()) {
-        throw new Error('OAuth authentication is not available in offline mode');
-      }
-
-      const redirectTo = getRedirectUrl('/auth/callback');
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo
-        }
-      });
-
-      if (error) throw error;
-
-      // Auth state will be updated by the auth state change listener
-      setAuth(prev => ({ ...prev, loading: false }));
-    } catch (error) {
-      console.error('Google sign in error:', error);
-      setAuth(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Google sign in failed'
-      }));
-      throw error;
-    }
+    return signInWithOAuth('google');
   };
 
   const signInWithGitHub = async () => {
-    setAuth(prev => ({ ...prev, loading: true, error: null }));
-
-    try {
-      if (isOfflineMode()) {
-        throw new Error('OAuth authentication is not available in offline mode');
-      }
-
-      const redirectTo = getRedirectUrl('/auth/callback');
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo
-        }
-      });
-
-      if (error) throw error;
-
-      // Auth state will be updated by the auth state change listener
-      setAuth(prev => ({ ...prev, loading: false }));
-    } catch (error) {
-      console.error('GitHub sign in error:', error);
-      setAuth(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'GitHub sign in failed'
-      }));
-      throw error;
-    }
+    return signInWithOAuth('github');
   };
 
   const resetPassword = async (email: string) => {
@@ -383,7 +369,9 @@ export const useAuthProvider = () => {
     try {
       if (isOfflineMode()) {
         // Offline mode: simulate password reset
-        throw new Error('Password reset not available in offline mode');
+        const error = new Error('Password reset not available in offline mode');
+        setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+        return { error };
       } else {
         // Online mode: Send password reset email with proper redirect URL
         const redirectTo = getRedirectUrl('/auth/reset-password');
@@ -392,22 +380,24 @@ export const useAuthProvider = () => {
           redirectTo
         });
 
-        if (error) throw error;
+        if (error) {
+          setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+          return { error };
+        }
+        
         setAuth(prev => ({ ...prev, loading: false }));
+        return { error: null };
       }
     } catch (error) {
       console.error('Password reset error:', error);
-      setAuth(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Password reset failed'
-      }));
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Password reset failed';
+      setAuth(prev => ({ ...prev, loading: false, error: errorMessage }));
+      return { error: { message: errorMessage } };
     }
   };
 
   const updateProfile = async (updates: Partial<User>) => {
-    if (!auth.user) throw new Error('Must be logged in to update profile');
+    if (!auth.user) return { error: { message: 'Must be logged in to update profile' } };
 
     setAuth(prev => ({ ...prev, loading: true, error: null }));
 
@@ -428,6 +418,7 @@ export const useAuthProvider = () => {
           loading: false,
           error: null
         });
+        return { error: null };
       } else {
         // Online mode: update Supabase
         const { data, error } = await supabase
@@ -437,22 +428,23 @@ export const useAuthProvider = () => {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+          return { error };
+        }
 
         setAuth({
           user: data,
           loading: false,
           error: null
         });
+        return { error: null };
       }
     } catch (error) {
       console.error('Profile update error:', error);
-      setAuth(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Profile update failed'
-      }));
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Profile update failed';
+      setAuth(prev => ({ ...prev, loading: false, error: errorMessage }));
+      return { error: { message: errorMessage } };
     }
   };
 
@@ -463,7 +455,11 @@ export const useAuthProvider = () => {
       if (isOfflineMode()) {
         localStorage.removeItem('offline_current_user');
       } else {
-        await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          setAuth(prev => ({ ...prev, loading: false, error: error.message }));
+          return { error };
+        }
       }
 
       setAuth({
@@ -471,13 +467,12 @@ export const useAuthProvider = () => {
         loading: false,
         error: null
       });
+      return { error: null };
     } catch (error) {
       console.error('Sign out error:', error);
-      setAuth(prev => ({
-        ...prev,
-        loading: false,
-        error: error instanceof Error ? error.message : 'Sign out failed'
-      }));
+      const errorMessage = error instanceof Error ? error.message : 'Sign out failed';
+      setAuth(prev => ({ ...prev, loading: false, error: errorMessage }));
+      return { error: { message: errorMessage } };
     }
   };
 
@@ -488,6 +483,7 @@ export const useAuthProvider = () => {
     signInWithMagicLink,
     signInWithGoogle,
     signInWithGitHub,
+    signInWithOAuth,
     resetPassword,
     updateProfile,
     signOut,

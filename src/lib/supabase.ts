@@ -24,7 +24,7 @@ export const supabase = hasValidCredentials
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        // Allow auth to work on different hosts
+        // Use PKCE flow for better security and compatibility
         flowType: 'pkce'
       },
       // Ensure requests work from any host

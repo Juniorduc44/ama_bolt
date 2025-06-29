@@ -33,8 +33,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [success, setSuccess] = useState('');
 
-  const { signIn, signUp, signInWithMagicLink, signInWithGoogle, signInWithGitHub, auth } = useAuth();
+  const { signIn, signUp, signInWithMagicLink, signInWithGoogle, signInWithGitHub } = useAuth();
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -87,24 +88,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!validateForm()) return;
 
     setLoading(true);
+    setErrors({});
+    setSuccess('');
+
     try {
+      let result;
+      
       if (authMethod === 'magic') {
-        await signInWithMagicLink(formData.email);
-        setMagicLinkSent(true);
+        result = await signInWithMagicLink(formData.email);
+        if (!result.error) {
+          setMagicLinkSent(true);
+          setSuccess('Magic link sent! Check your email to sign in.');
+        }
       } else if (authMethod === 'email') {
         if (mode === 'signin') {
-          await signIn(formData.email, formData.password);
-          handleSuccess();
+          result = await signIn(formData.email, formData.password);
         } else {
-          await signUp(formData.email, formData.password, formData.username);
+          result = await signUp(formData.email, formData.password, formData.username);
+        }
+        
+        if (!result.error) {
           handleSuccess();
         }
       } else if (authMethod === 'google') {
-        await signInWithGoogle();
-        handleSuccess();
+        result = await signInWithGoogle();
+        // OAuth redirects, so we don't handle success here
       } else if (authMethod === 'github') {
-        await signInWithGitHub();
-        handleSuccess();
+        result = await signInWithGitHub();
+        // OAuth redirects, so we don't handle success here
+      }
+
+      if (result?.error) {
+        setErrors({ 
+          submit: result.error.message || 'Authentication failed' 
+        });
       }
     } catch (error) {
       setErrors({ 
@@ -117,13 +134,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleOAuthSignIn = async (provider: 'google' | 'github') => {
     setLoading(true);
+    setErrors({});
+    
     try {
+      let result;
       if (provider === 'google') {
-        await signInWithGoogle();
+        result = await signInWithGoogle();
       } else if (provider === 'github') {
-        await signInWithGitHub();
+        result = await signInWithGitHub();
       }
-      handleSuccess();
+
+      if (result?.error) {
+        setErrors({ 
+          submit: result.error.message || 'Authentication failed' 
+        });
+      }
+      // OAuth will redirect, so we don't handle success here
     } catch (error) {
       setErrors({ 
         submit: error instanceof Error ? error.message : 'Authentication failed' 
@@ -138,6 +164,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setFormData({ email: '', password: '', username: '', confirmPassword: '' });
     setErrors({});
     setMagicLinkSent(false);
+    setSuccess('');
     onClose();
   };
 
@@ -155,6 +182,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setAuthMethod(newMode === 'signup' ? 'email' : 'magic');
     setErrors({});
     setMagicLinkSent(false);
+    setSuccess('');
   };
 
   const handleAuthMethodChange = (method: 'magic' | 'email' | 'google' | 'github') => {
@@ -162,6 +190,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setShowAuthDropdown(false);
     setErrors({});
     setMagicLinkSent(false);
+    setSuccess('');
   };
 
   const getAuthMethodLabel = () => {
@@ -457,6 +486,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               )}
             </>
+          )}
+
+          {/* Success message */}
+          {success && (
+            <div className="p-3 bg-emerald-900/30 border border-emerald-600/30 rounded-lg">
+              <p className="text-sm text-emerald-400">{success}</p>
+            </div>
           )}
 
           {/* Submit error */}
