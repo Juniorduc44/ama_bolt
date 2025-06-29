@@ -9,8 +9,23 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Create Supabase client instance
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client instance with proper configuration for network access
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Ensure auth works across different domains/IPs
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    // Allow auth to work on different hosts
+    flowType: 'pkce'
+  },
+  // Ensure requests work from any host
+  global: {
+    headers: {
+      'X-Client-Info': 'ama-global-app'
+    }
+  }
+});
 
 /**
  * Check if the application is running in offline mode
