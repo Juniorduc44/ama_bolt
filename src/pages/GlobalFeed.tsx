@@ -3,52 +3,45 @@
  * Shows all questions from all users with search and filtering capabilities
  */
 
-import React, { useState } from 'react';
-import { Search, Filter, Users, Clock, TrendingUp, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Users, Clock, TrendingUp, Zap, X } from 'lucide-react';
 import { QuestionCard } from '../components/questions/QuestionCard';
+import { SearchResults } from '../components/search/SearchResults';
 import { useQuestions } from '../hooks/useQuestions';
+import { useSearch } from '../hooks/useSearch';
 import { useAuth } from '../hooks/useAuth';
 
 type SortOption = 'newest' | 'oldest' | 'votes' | 'answers' | 'username-az' | 'username-za';
 
 export const GlobalFeed: React.FC = () => {
   const { questions, loading, voteOnQuestion } = useQuestions();
+  const { results: searchResults, searchDatabase, clearSearch } = useSearch();
   const { auth } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showFilters, setShowFilters] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
-  // Filter questions based on search term
-  const filteredQuestions = questions.filter(question => {
-    const searchLower = searchTerm.toLowerCase();
-    
-    // Search in title and content
-    const titleMatch = question.title.toLowerCase().includes(searchLower);
-    const contentMatch = question.content.toLowerCase().includes(searchLower);
-    
-    // Search in tags
-    const tagMatch = question.tags.some(tag => tag.toLowerCase().includes(searchLower));
-    
-    // Search in author username - handle both direct username and @username format
-    const authorUsername = question.author?.username || '';
-    const usernameMatch = authorUsername.toLowerCase().includes(searchLower);
-    
-    // Also check for @username format in search
-    const atUsernameMatch = searchLower.startsWith('@') 
-      ? authorUsername.toLowerCase().includes(searchLower.slice(1))
-      : false;
-    
-    // Check if the question is directed to a specific user (from title parsing)
-    const targetUserMatch = question.title.match(/\(asked to @(\w+)\)$/);
-    const targetUsername = targetUserMatch ? targetUserMatch[1].toLowerCase() : '';
-    const targetMatch = targetUsername.includes(searchLower) || 
-                       (searchLower.startsWith('@') && targetUsername.includes(searchLower.slice(1)));
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim()) {
+        setIsSearching(true);
+        searchDatabase(searchTerm).finally(() => setIsSearching(false));
+      } else {
+        clearSearch();
+        setIsSearching(false);
+      }
+    }, 300);
 
-    return titleMatch || contentMatch || tagMatch || usernameMatch || atUsernameMatch || targetMatch;
-  });
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  // Use search results if searching, otherwise use all questions
+  const displayQuestions = searchTerm.trim() ? searchResults.questions : questions;
 
   // Sort questions based on selected option
-  const sortedQuestions = [...filteredQuestions].sort((a, b) => {
+  const sortedQuestions = [...displayQuestions].sort((a, b) => {
     switch (sortBy) {
       case 'newest':
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -95,7 +88,12 @@ export const GlobalFeed: React.FC = () => {
     // TODO: Navigate to question detail page
   };
 
-  if (loading) {
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    clearSearch();
+  };
+
+  if (loading && !searchTerm) {
     return (
       <div className="space-y-6">
         {[...Array(5)].map((_, index) => (
@@ -157,9 +155,11 @@ export const GlobalFeed: React.FC = () => {
       {/* Header with Search and Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-4">
-          <h2 className="text-2xl font-bold text-white">All Questions</h2>
+          <h2 className="text-2xl font-bold text-white">
+            {searchTerm ? 'Search Results' : 'All Questions'}
+          </h2>
           <span className="px-3 py-1 bg-slate-800 border border-slate-600 text-slate-300 text-sm rounded-full">
-            {questions.length} questions
+            {searchTerm ? displayQuestions.length : questions.length} questions
           </span>
         </div>
 
@@ -173,9 +173,17 @@ export const GlobalFeed: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="Search questions, usernames, or @username..."
+              className="block w-full pl-10 pr-10 py-2 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              placeholder="Search users, questions, or content..."
             />
+            {searchTerm && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Filter Toggle */}
@@ -187,6 +195,25 @@ export const GlobalFeed: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Search Status */}
+      {searchTerm && (
+        <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-3">
+          <p className="text-slate-400 text-sm">
+            {isSearching ? (
+              <span className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                <span>Searching database for "{searchTerm}"...</span>
+              </span>
+            ) : (
+              <>
+                <span className="text-emerald-400 font-medium">Search results:</span>
+                {' '}Found {searchResults.users.length} user{searchResults.users.length !== 1 ? 's' : ''} and {displayQuestions.length} question{displayQuestions.length !== 1 ? 's' : ''} for "{searchTerm}".
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Sort Options */}
       {showFilters && (
@@ -220,42 +247,35 @@ export const GlobalFeed: React.FC = () => {
         </div>
       )}
 
-      {/* Search Help Text */}
+      {/* Search Results */}
       {searchTerm && (
-        <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-3">
-          <p className="text-slate-400 text-sm">
-            <span className="text-emerald-400 font-medium">Search tips:</span> 
-            {' '}Try searching for usernames like "john\" or "@john", question content, or tags. 
-            Showing {filteredQuestions.length} result{filteredQuestions.length !== 1 ? 's' : ''} for "{searchTerm}".
-          </p>
-        </div>
+        <SearchResults
+          questions={searchResults.questions}
+          users={searchResults.users}
+          loading={isSearching}
+          error={searchResults.error}
+          searchTerm={searchTerm}
+        />
       )}
 
       {/* Questions List */}
-      {sortedQuestions.length === 0 ? (
+      {!searchTerm && sortedQuestions.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
             <Search className="h-8 w-8 text-slate-400" />
           </div>
-          <h3 className="text-lg font-medium text-white mb-2">
-            {searchTerm ? 'No questions found' : 'No questions yet'}
-          </h3>
+          <h3 className="text-lg font-medium text-white mb-2">No questions yet</h3>
           <p className="text-slate-400 mb-6">
-            {searchTerm 
-              ? 'Try adjusting your search terms or clear the search to see all questions.'
-              : 'Be the first to ask a question on AMA Global.'
-            }
+            Be the first to ask a question on AMA Global.
           </p>
-          {!searchTerm && (
-            <a
-              href="/ask"
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
-            >
-              <span>Ask a Question</span>
-            </a>
-          )}
+          <a
+            href="/ask"
+            className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
+          >
+            <span>Ask a Question</span>
+          </a>
         </div>
-      ) : (
+      ) : !searchTerm ? (
         <div className="space-y-6">
           {sortedQuestions.map((question) => (
             <QuestionCard
@@ -268,7 +288,7 @@ export const GlobalFeed: React.FC = () => {
             />
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
