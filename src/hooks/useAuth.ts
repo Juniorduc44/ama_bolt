@@ -13,6 +13,8 @@ const AuthContext = createContext<{
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
   signOut: () => Promise<void>;
 } | null>(null);
 
@@ -90,11 +92,34 @@ export const useAuthProvider = () => {
           if (event === 'SIGNED_OUT' || !session) {
             setAuth({ user: null, loading: false, error: null });
           } else if (session?.user) {
-            const { data: profile } = await supabase
+            // Fetch or create profile
+            let { data: profile, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
+
+            // If profile doesn't exist, create it (fallback for magic link users)
+            if (error && error.code === 'PGRST116') {
+              const username = session.user.email?.split('@')[0] || 'user';
+              const { data: newProfile, error: insertError } = await supabase
+                .from('profiles')
+                .insert([
+                  {
+                    id: session.user.id,
+                    email: session.user.email!,
+                    username: username,
+                    reputation: 0,
+                    is_moderator: false
+                  }
+                ])
+                .select()
+                .single();
+
+              if (!insertError) {
+                profile = newProfile;
+              }
+            }
 
             if (profile && mounted) {
               setAuth({
@@ -145,6 +170,7 @@ export const useAuthProvider = () => {
         });
 
         if (error) throw error;
+        // Auth state will be updated by the auth state change listener
       }
     } catch (error) {
       setAuth(prev => ({
@@ -190,22 +216,9 @@ export const useAuthProvider = () => {
 
         if (error) throw error;
 
-        if (data.user) {
-          // Create user profile
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: data.user.id,
-                email,
-                username,
-                reputation: 0,
-                is_moderator: false
-              }
-            ]);
-
-          if (profileError) throw profileError;
-        }
+        // Profile will be created automatically by the trigger
+        // Auth state will be updated by the auth state change listener
+        setAuth(prev => ({ ...prev, loading: false }));
       }
     } catch (error) {
       setAuth(prev => ({
@@ -272,6 +285,81 @@ export const useAuthProvider = () => {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    setAuth(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      if (isOfflineMode()) {
+        // Offline mode: simulate password reset
+        throw new Error('Password reset not available in offline mode');
+      } else {
+        // Online mode: Send password reset email (magic link style)
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`
+        });
+
+        if (error) throw error;
+        setAuth(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      setAuth(prev => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Password reset failed'
+      }));
+      throw error;
+    }
+  };
+
+  const updateProfile = async (updates: Partial<User>) => {
+    if (!auth.user) throw new Error('Must be logged in to update profile');
+
+    setAuth(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      if (isOfflineMode()) {
+        // Offline mode: update localStorage
+        const users = await offlineDB.getUsers();
+        const updatedUsers = users.map(user => 
+          user.id === auth.user!.id ? { ...user, ...updates } : user
+        );
+        localStorage.setItem('offline_users', JSON.stringify(updatedUsers));
+        
+        const updatedUser = { ...auth.user, ...updates };
+        localStorage.setItem('offline_current_user', JSON.stringify(updatedUser));
+        
+        setAuth({
+          user: updatedUser,
+          loading: false,
+          error: null
+        });
+      } else {
+        // Online mode: update Supabase
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', auth.user.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setAuth({
+          user: data,
+          loading: false,
+          error: null
+        });
+      }
+    } catch (error) {
+      setAuth(prev => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Profile update failed'
+      }));
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     setAuth(prev => ({ ...prev, loading: true }));
 
@@ -301,6 +389,8 @@ export const useAuthProvider = () => {
     signIn,
     signUp,
     signInWithMagicLink,
+    resetPassword,
+    updateProfile,
     signOut,
     AuthContext
   };

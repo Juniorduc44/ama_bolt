@@ -10,12 +10,38 @@ import { GlobalFeed } from './pages/GlobalFeed';
 import { ProfilePage } from './pages/ProfilePage';
 import { AskQuestionPage } from './pages/AskQuestionPage';
 import { AuthModal } from './components/auth/AuthModal';
+import { ProfileSetupModal } from './components/auth/ProfileSetupModal';
 import { useAuthProvider } from './hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
   const { auth } = useAuthProvider();
+
+  // Check if user needs to complete profile setup (magic link users)
+  useEffect(() => {
+    if (auth.user && !auth.loading) {
+      // Check if user has a default username (email prefix) and might want to customize it
+      const emailPrefix = auth.user.email.split('@')[0];
+      const hasDefaultUsername = auth.user.username === emailPrefix;
+      
+      // Show profile setup for new magic link users with default usernames
+      // You can add additional logic here to track if user has seen this modal
+      const hasSeenProfileSetup = localStorage.getItem(`profile_setup_${auth.user.id}`);
+      
+      if (hasDefaultUsername && !hasSeenProfileSetup) {
+        setShowProfileSetup(true);
+      }
+    }
+  }, [auth.user, auth.loading]);
+
+  const handleProfileSetupComplete = () => {
+    if (auth.user) {
+      localStorage.setItem(`profile_setup_${auth.user.id}`, 'true');
+    }
+    setShowProfileSetup(false);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -35,6 +61,13 @@ function AppContent() {
         onClose={() => setShowAuthModal(false)}
       />
 
+      {/* Profile Setup Modal */}
+      <ProfileSetupModal
+        isOpen={showProfileSetup}
+        onClose={() => setShowProfileSetup(false)}
+        onComplete={handleProfileSetupComplete}
+      />
+
       {/* Loading Overlay */}
       {auth.loading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -51,10 +84,10 @@ function AppContent() {
 }
 
 function App() {
-  const { auth, signIn, signUp, signOut, AuthContext } = useAuthProvider();
+  const { auth, signIn, signUp, signInWithMagicLink, resetPassword, updateProfile, signOut, AuthContext } = useAuthProvider();
 
   return (
-    <AuthContext.Provider value={{ auth, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ auth, signIn, signUp, signInWithMagicLink, resetPassword, updateProfile, signOut }}>
       <Router>
         <AppContent />
       </Router>
