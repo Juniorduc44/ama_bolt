@@ -194,7 +194,7 @@ export const QuestionList: React.FC<QuestionListProps> = ({
               className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
             >
               <Plus className="h-5 w-5" />
-              <span>Ask the First Question</span>
+              <span>Ask a Question</span>
             </button>
           )}
         </div>
