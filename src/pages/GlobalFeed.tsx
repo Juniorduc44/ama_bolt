@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, Users, Clock, TrendingUp, Zap, X } from 'lucide-react';
 import { QuestionCard } from '../components/questions/QuestionCard';
 import { SearchResults } from '../components/search/SearchResults';
+import { DonateButton } from '../components/ui/DonateButton';
 import { useQuestions } from '../hooks/useQuestions';
 import { useSearch } from '../hooks/useSearch';
 import { useAuth } from '../hooks/useAuth';
@@ -148,6 +149,7 @@ export const GlobalFeed: React.FC = () => {
             >
               Browse Questions
             </button>
+            <DonateButton variant="inline" className="hidden lg:inline-flex" />
           </div>
         </div>
       </div>
@@ -289,6 +291,9 @@ export const GlobalFeed: React.FC = () => {
           ))}
         </div>
       ) : null}
+
+      {/* Floating Donate Button */}
+      <DonateButton />
     </div>
   );
 };

@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Search, Filter, Plus, Clock, TrendingUp, Zap, User, Star, MessageCircle } from 'lucide-react';
 import { QuestionCard } from '../components/questions/QuestionCard';
+import { DonateButton } from '../components/ui/DonateButton';
 import { useQuestions } from '../hooks/useQuestions';
 import { useAuth } from '../hooks/useAuth';
 import { User as UserType } from '../types';
@@ -198,13 +199,16 @@ export const ProfilePage: React.FC = () => {
             </div>
           </div>
           
-          <button
-            onClick={handleAskQuestion}
-            className="flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Ask @{profileUser.username}</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <DonateButton variant="inline" className="hidden lg:inline-flex" />
+            <button
+              onClick={handleAskQuestion}
+              className="flex items-center space-x-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Ask @{profileUser.username}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -351,6 +355,9 @@ export const ProfilePage: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Floating Donate Button */}
+      <DonateButton />
     </div>
   );
 };
