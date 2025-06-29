@@ -1,11 +1,11 @@
 /**
  * Application header component
- * Provides navigation, search, and user authentication controls
+ * Provides navigation and user authentication controls
  */
 
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Globe, Search, User, LogOut, Settings, Wifi, WifiOff, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Globe, User, LogOut, Settings, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { isOfflineMode } from '../../lib/supabase';
 
@@ -18,17 +18,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onAuthClick, onToggleOffline, isOffline = false }) => {
   const { auth, signOut } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [searchTerm, setSearchTerm] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      // Navigate to global feed with search parameter
-      navigate(`/?search=${encodeURIComponent(searchTerm.trim())}`);
-    }
-  };
 
   const handleSignOut = async () => {
     try {
@@ -41,10 +31,6 @@ export const Header: React.FC<HeaderProps> = ({ onAuthClick, onToggleOffline, is
 
   const handleLogoClick = () => {
     navigate('/');
-  };
-
-  const handleAskQuestion = () => {
-    navigate('/ask');
   };
 
   return (
@@ -72,33 +58,8 @@ export const Header: React.FC<HeaderProps> = ({ onAuthClick, onToggleOffline, is
             )}
           </div>
 
-          {/* Search Bar */}
-          <div className="flex-1 max-w-lg mx-8 hidden md:block">
-            <form onSubmit={handleSearch} className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-slate-400" />
-              </div>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="Search questions or usernames..."
-              />
-            </form>
-          </div>
-
           {/* Action Buttons and User Menu */}
           <div className="flex items-center space-x-4">
-            {/* Ask Question Button */}
-            <button
-              onClick={handleAskQuestion}
-              className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
-            >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:block">Ask</span>
-            </button>
-
             {/* Offline Mode Toggle */}
             {onToggleOffline && (
               <button
