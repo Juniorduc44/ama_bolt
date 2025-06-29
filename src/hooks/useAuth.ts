@@ -28,6 +28,18 @@ export const useAuth = () => {
   return context;
 };
 
+// Helper function to get the correct redirect URL based on environment
+const getRedirectUrl = (path: string = '/auth/callback') => {
+  // Check if we're in development
+  if (import.meta.env.DEV) {
+    return `${window.location.origin}${path}`;
+  }
+  
+  // For production, always use the deployed URL
+  const deployedUrl = 'https://ama-global.netlify.app';
+  return `${deployedUrl}${path}`;
+};
+
 export const useAuthProvider = () => {
   const [auth, setAuth] = useState<AuthState>({
     user: null,
@@ -272,8 +284,7 @@ export const useAuthProvider = () => {
         });
       } else {
         // Online mode: Send magic link via Supabase with proper redirect URL
-        // Use the current origin to ensure it works from any host
-        const redirectTo = `${window.location.origin}/auth/callback`;
+        const redirectTo = getRedirectUrl('/auth/callback');
         
         const { error } = await supabase.auth.signInWithOtp({
           email,
@@ -310,10 +321,12 @@ export const useAuthProvider = () => {
         throw new Error('OAuth authentication is not available in offline mode');
       }
 
+      const redirectTo = getRedirectUrl('/auth/callback');
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo
         }
       });
 
@@ -340,10 +353,12 @@ export const useAuthProvider = () => {
         throw new Error('OAuth authentication is not available in offline mode');
       }
 
+      const redirectTo = getRedirectUrl('/auth/callback');
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo
         }
       });
 
@@ -371,8 +386,7 @@ export const useAuthProvider = () => {
         throw new Error('Password reset not available in offline mode');
       } else {
         // Online mode: Send password reset email with proper redirect URL
-        // Use the current origin to ensure it works from any host
-        const redirectTo = `${window.location.origin}/auth/reset-password`;
+        const redirectTo = getRedirectUrl('/auth/reset-password');
         
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo
