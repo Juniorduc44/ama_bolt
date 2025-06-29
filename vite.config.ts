@@ -12,7 +12,8 @@ export default defineConfig({
     cors: true,
     // Allow access from any origin during development
     hmr: {
-      host: process.env.HOST || process.env.VITE_WS_HOST || 'localhost'
+      host: true, // Allow Vite to automatically infer the correct HMR host
+      clientPort: 443 // Use standard HTTPS port for WebSocket connection
     }
   },
   // Ensure environment variables are properly exposed
