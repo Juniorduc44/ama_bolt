@@ -9,6 +9,8 @@ import { Header } from './components/layout/Header';
 import { GlobalFeed } from './pages/GlobalFeed';
 import { ProfilePage } from './pages/ProfilePage';
 import { AskQuestionPage } from './pages/AskQuestionPage';
+import { AuthCallback } from './pages/AuthCallback';
+import { ResetPassword } from './pages/ResetPassword';
 import { AuthModal } from './components/auth/AuthModal';
 import { ProfileSetupModal } from './components/auth/ProfileSetupModal';
 import { useAuthProvider } from './hooks/useAuth';
@@ -45,15 +47,25 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <Header onAuthClick={() => setShowAuthModal(true)} />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Routes>
-          <Route path="/" element={<GlobalFeed />} />
-          <Route path="/ask" element={<AskQuestionPage />} />
-          <Route path="/:username" element={<ProfilePage />} />
-        </Routes>
-      </main>
+      <Routes>
+        {/* Auth callback routes (no header) */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
+        
+        {/* Main app routes (with header) */}
+        <Route path="/*" element={
+          <>
+            <Header onAuthClick={() => setShowAuthModal(true)} />
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <Routes>
+                <Route path="/" element={<GlobalFeed />} />
+                <Route path="/ask" element={<AskQuestionPage />} />
+                <Route path="/:username" element={<ProfilePage />} />
+              </Routes>
+            </main>
+          </>
+        } />
+      </Routes>
 
       {/* Auth Modal */}
       <AuthModal

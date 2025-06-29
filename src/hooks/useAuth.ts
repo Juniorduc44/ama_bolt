@@ -54,14 +54,36 @@ export const useAuthProvider = () => {
           // Online mode: check Supabase session
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user && mounted) {
-            // Fetch user profile from database
-            const { data: profile } = await supabase
+            // Fetch or create profile
+            let { data: profile, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
 
-            if (profile) {
+            // If profile doesn't exist, create it (fallback for magic link users)
+            if (error && error.code === 'PGRST116') {
+              const username = session.user.email?.split('@')[0] || 'user';
+              const { data: newProfile, error: insertError } = await supabase
+                .from('profiles')
+                .insert([
+                  {
+                    id: session.user.id,
+                    email: session.user.email!,
+                    username: username,
+                    reputation: 0,
+                    is_moderator: false
+                  }
+                ])
+                .select()
+                .single();
+
+              if (!insertError) {
+                profile = newProfile;
+              }
+            }
+
+            if (profile && mounted) {
               setAuth({
                 user: profile,
                 loading: false,
@@ -92,34 +114,11 @@ export const useAuthProvider = () => {
           if (event === 'SIGNED_OUT' || !session) {
             setAuth({ user: null, loading: false, error: null });
           } else if (session?.user) {
-            // Fetch or create profile
-            let { data: profile, error } = await supabase
+            const { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
-
-            // If profile doesn't exist, create it (fallback for magic link users)
-            if (error && error.code === 'PGRST116') {
-              const username = session.user.email?.split('@')[0] || 'user';
-              const { data: newProfile, error: insertError } = await supabase
-                .from('profiles')
-                .insert([
-                  {
-                    id: session.user.id,
-                    email: session.user.email!,
-                    username: username,
-                    reputation: 0,
-                    is_moderator: false
-                  }
-                ])
-                .select()
-                .single();
-
-              if (!insertError) {
-                profile = newProfile;
-              }
-            }
 
             if (profile && mounted) {
               setAuth({
@@ -215,7 +214,6 @@ export const useAuthProvider = () => {
         });
 
         if (error) throw error;
-
         // Profile will be created automatically by the trigger
         // Auth state will be updated by the auth state change listener
         setAuth(prev => ({ ...prev, loading: false }));
@@ -259,14 +257,17 @@ export const useAuthProvider = () => {
           error: null
         });
       } else {
-        // Online mode: Send magic link via Supabase
+        // Online mode: Send magic link via Supabase with proper redirect URL
+        const redirectTo = `${window.location.origin}/auth/callback`;
+        
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: {
             shouldCreateUser: true,
             data: {
               username: email.split('@')[0] // Use email prefix as default username
-            }
+            },
+            emailRedirectTo: redirectTo
           }
         });
 
@@ -293,9 +294,11 @@ export const useAuthProvider = () => {
         // Offline mode: simulate password reset
         throw new Error('Password reset not available in offline mode');
       } else {
-        // Online mode: Send password reset email (magic link style)
+        // Online mode: Send password reset email with proper redirect URL
+        const redirectTo = `${window.location.origin}/auth/reset-password`;
+        
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`
+          redirectTo
         });
 
         if (error) throw error;
