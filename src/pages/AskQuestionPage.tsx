@@ -129,7 +129,13 @@ export const AskQuestionPage: React.FC = () => {
       // Create question with target user information
       const questionTitle = `${formData.title} (asked to @${targetUser!.username})`;
       
-      await createQuestion(questionTitle, formData.content, tags);
+      await createQuestion(
+        questionTitle, 
+        formData.content, 
+        tags,
+        formData.askerName,
+        formData.isAnonymous
+      );
       
       // Navigate to the target user's profile
       navigate(`/${targetUser!.username}`);
@@ -191,7 +197,7 @@ export const AskQuestionPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-white">Ask a Question</h1>
           <p className="text-slate-400 mt-1">
-            Ask anyone on AMA Global - authentication optional
+            Ask anyone on AMA Global - no account required
           </p>
         </div>
       </div>
@@ -298,6 +304,17 @@ export const AskQuestionPage: React.FC = () => {
                   )}
                 </div>
               )}
+              
+              <div className="mt-3 p-3 bg-emerald-900/20 border border-emerald-600/30 rounded-lg">
+                <p className="text-emerald-400 text-sm font-medium mb-1">Public Questions</p>
+                <p className="text-slate-300 text-sm">
+                  All questions are public and can be viewed by anyone. 
+                  {formData.isAnonymous 
+                    ? ' Your question will be posted anonymously.' 
+                    : ' Your name will be displayed with the question.'
+                  }
+                </p>
+              </div>
             </div>
           )}
 

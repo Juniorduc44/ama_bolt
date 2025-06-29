@@ -17,7 +17,7 @@ export interface Question {
   id: string;
   title: string;
   content: string;
-  author_id: string;
+  author_id: string | null; // null for anonymous questions
   author?: User;
   votes: number;
   answer_count: number;
@@ -28,6 +28,8 @@ export interface Question {
   is_featured: boolean;
   target_user_id?: string; // ID of the user the question is directed to
   target_user?: User; // User the question is directed to
+  asker_name?: string | null; // Name for non-authenticated users
+  is_anonymous?: boolean; // Whether the question is anonymous
 }
 
 export interface Answer {

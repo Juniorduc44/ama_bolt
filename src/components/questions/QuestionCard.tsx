@@ -1,11 +1,12 @@
 /**
  * Question card component
  * Displays individual questions with voting, answers, and interaction controls
+ * Supports both authenticated and anonymous questions
  */
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronUp, ChevronDown, MessageCircle, Clock, User, Star } from 'lucide-react';
+import { ChevronUp, ChevronDown, MessageCircle, Clock, User, Star, UserX } from 'lucide-react';
 import { Question } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -47,6 +48,41 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const targetUserMatch = question.title.match(/\(asked to @(\w+)\)$/);
   const targetUsername = targetUserMatch ? targetUserMatch[1] : null;
   const cleanTitle = targetUserMatch ? question.title.replace(/\s*\(asked to @\w+\)$/, '') : question.title;
+
+  // Determine display name for the asker
+  const getAskerDisplay = () => {
+    if (question.author) {
+      // Authenticated user
+      return {
+        name: question.author.username,
+        isAuthenticated: true,
+        isModerator: question.author.is_moderator
+      };
+    } else if (question.is_anonymous) {
+      // Anonymous question
+      return {
+        name: 'Anonymous',
+        isAuthenticated: false,
+        isModerator: false
+      };
+    } else if (question.asker_name) {
+      // Non-authenticated user with name
+      return {
+        name: question.asker_name,
+        isAuthenticated: false,
+        isModerator: false
+      };
+    } else {
+      // Fallback
+      return {
+        name: 'Anonymous',
+        isAuthenticated: false,
+        isModerator: false
+      };
+    }
+  };
+
+  const askerInfo = getAskerDisplay();
 
   return (
     <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-700 hover:border-slate-600 rounded-xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/5">
@@ -137,23 +173,43 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           {/* Question Meta */}
           <div className="flex items-center justify-between text-sm text-slate-400">
             <div className="flex items-center space-x-4">
-              {/* Author */}
-              <button
-                onClick={handleAuthorClick}
-                className="flex items-center space-x-2 hover:text-emerald-400 transition-colors duration-200"
-              >
-                <div className="w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-                <span className="font-medium text-slate-300">
-                  {question.author?.username || 'Anonymous'}
-                </span>
-                {question.author?.is_moderator && (
-                  <span className="px-2 py-0.5 bg-purple-900/30 border border-purple-600/30 text-purple-400 text-xs rounded-full">
-                    MOD
+              {/* Asker */}
+              {askerInfo.isAuthenticated ? (
+                <button
+                  onClick={handleAuthorClick}
+                  className="flex items-center space-x-2 hover:text-emerald-400 transition-colors duration-200"
+                >
+                  <div className="w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                  <span className="font-medium text-slate-300">
+                    @{askerInfo.name}
                   </span>
-                )}
-              </button>
+                  {askerInfo.isModerator && (
+                    <span className="px-2 py-0.5 bg-purple-900/30 border border-purple-600/30 text-purple-400 text-xs rounded-full">
+                      MOD
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 bg-slate-600 rounded-full flex items-center justify-center">
+                    {question.is_anonymous ? (
+                      <UserX className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <User className="h-4 w-4 text-slate-400" />
+                    )}
+                  </div>
+                  <span className="font-medium text-slate-400">
+                    {askerInfo.name}
+                  </span>
+                  {!askerInfo.isAuthenticated && (
+                    <span className="px-2 py-0.5 bg-slate-700 border border-slate-600 text-slate-400 text-xs rounded-full">
+                      {question.is_anonymous ? 'ANON' : 'GUEST'}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Timestamp */}
               <div className="flex items-center space-x-1">

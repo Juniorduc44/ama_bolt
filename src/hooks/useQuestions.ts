@@ -1,6 +1,7 @@
 /**
  * Custom hook for question management
  * Handles CRUD operations for questions in both online and offline modes
+ * Supports both authenticated and anonymous question creation
  */
 
 import { useState, useEffect } from 'react';
@@ -47,7 +48,7 @@ export const useQuestions = () => {
 
         if (questionsError) throw questionsError;
 
-        // Then get profiles for the authors
+        // Then get profiles for the authors (only for questions that have author_id)
         const authorIds = [...new Set(questionsData?.map(q => q.author_id).filter(Boolean))];
         
         let profilesData = [];
@@ -64,7 +65,7 @@ export const useQuestions = () => {
         // Combine questions with author profiles
         const questionsWithAuthors = questionsData?.map(question => ({
           ...question,
-          author: profilesData.find(profile => profile.id === question.author_id)
+          author: question.author_id ? profilesData.find(profile => profile.id === question.author_id) : null
         })) || [];
 
         setQuestions(questionsWithAuthors);
@@ -76,21 +77,27 @@ export const useQuestions = () => {
     }
   };
 
-  const createQuestion = async (title: string, content: string, tags: string[] = []) => {
-    if (!auth.user) throw new Error('Must be logged in to create questions');
-
+  const createQuestion = async (
+    title: string, 
+    content: string, 
+    tags: string[] = [],
+    askerName?: string,
+    isAnonymous: boolean = false
+  ) => {
     try {
       setError(null);
 
       const questionData = {
         title,
         content,
-        author_id: auth.user.id,
+        author_id: auth.user?.id || null, // null for anonymous questions
         votes: 0,
         answer_count: 0,
         tags,
         is_answered: false,
-        is_featured: false
+        is_featured: false,
+        asker_name: !auth.user && !isAnonymous ? askerName : null, // Store name for non-authenticated, non-anonymous users
+        is_anonymous: isAnonymous
       };
 
       if (isOfflineMode()) {
@@ -108,12 +115,16 @@ export const useQuestions = () => {
 
         if (error) throw error;
         
-        // Get the author profile for the new question
-        const { data: authorProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', auth.user.id)
-          .single();
+        // Get the author profile for the new question (if authenticated)
+        let authorProfile = null;
+        if (auth.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', auth.user.id)
+            .single();
+          authorProfile = profile;
+        }
 
         const questionWithAuthor = {
           ...data,
