@@ -90,11 +90,7 @@ export const useSearch = () => {
             *,
             author:profiles!questions_author_id_fkey(*)
           `)
-          .or(`
-            title.ilike.${searchPattern},
-            content.ilike.${searchPattern},
-            tags.cs.{${searchTerm}}
-          `)
+          .or(`title.ilike.${searchPattern},content.ilike.${searchPattern},tags.cs.{${searchTerm}}`)
           .order('created_at', { ascending: false })
           .limit(20);
 
