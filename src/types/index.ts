@@ -26,6 +26,8 @@ export interface Question {
   tags: string[];
   is_answered: boolean;
   is_featured: boolean;
+  target_user_id?: string; // ID of the user the question is directed to
+  target_user?: User; // User the question is directed to
 }
 
 export interface Answer {

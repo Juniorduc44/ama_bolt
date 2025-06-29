@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronUp, ChevronDown, MessageCircle, Clock, User, Star } from 'lucide-react';
 import { Question } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -13,14 +14,18 @@ interface QuestionCardProps {
   onVote: (questionId: string, voteType: 'up' | 'down') => void;
   onAnswerClick: (questionId: string) => void;
   currentUserId?: string;
+  showTargetUser?: boolean;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
   question,
   onVote,
   onAnswerClick,
-  currentUserId
+  currentUserId,
+  showTargetUser = false
 }) => {
+  const navigate = useNavigate();
+
   const handleVote = (voteType: 'up' | 'down') => {
     if (!currentUserId) {
       // TODO: Show login modal
@@ -30,7 +35,18 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     onVote(question.id, voteType);
   };
 
+  const handleAuthorClick = () => {
+    if (question.author?.username) {
+      navigate(`/${question.author.username}`);
+    }
+  };
+
   const timeAgo = formatDistanceToNow(new Date(question.created_at), { addSuffix: true });
+
+  // Extract target username from title if it contains "(asked to @username)"
+  const targetUserMatch = question.title.match(/\(asked to @(\w+)\)$/);
+  const targetUsername = targetUserMatch ? targetUserMatch[1] : null;
+  const cleanTitle = targetUserMatch ? question.title.replace(/\s*\(asked to @\w+\)$/, '') : question.title;
 
   return (
     <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-700 hover:border-slate-600 rounded-xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/5">
@@ -68,12 +84,28 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         <div className="flex-1 min-w-0">
           {/* Question Header */}
           <div className="flex items-start justify-between mb-3">
-            <h3 className="text-xl font-semibold text-white leading-tight pr-4">
-              {question.title}
-              {question.is_featured && (
-                <Star className="inline-block h-5 w-5 text-yellow-400 ml-2" />
+            <div className="flex-1 pr-4">
+              <h3 className="text-xl font-semibold text-white leading-tight">
+                {cleanTitle}
+                {question.is_featured && (
+                  <Star className="inline-block h-5 w-5 text-yellow-400 ml-2" />
+                )}
+              </h3>
+              
+              {/* Target User Display */}
+              {showTargetUser && targetUsername && (
+                <div className="mt-2">
+                  <button
+                    onClick={() => navigate(`/${targetUsername}`)}
+                    className="inline-flex items-center space-x-1 px-2 py-1 bg-emerald-900/30 border border-emerald-600/30 rounded-full text-emerald-400 text-sm font-medium hover:bg-emerald-900/40 transition-colors duration-200"
+                  >
+                    <span>asked to</span>
+                    <User className="h-3 w-3" />
+                    <span>@{targetUsername}</span>
+                  </button>
+                </div>
               )}
-            </h3>
+            </div>
             
             {question.is_answered && (
               <div className="flex items-center space-x-1 px-2 py-1 bg-emerald-900/30 border border-emerald-600/30 rounded-full text-emerald-400 text-xs font-medium">
@@ -106,7 +138,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <div className="flex items-center justify-between text-sm text-slate-400">
             <div className="flex items-center space-x-4">
               {/* Author */}
-              <div className="flex items-center space-x-2">
+              <button
+                onClick={handleAuthorClick}
+                className="flex items-center space-x-2 hover:text-emerald-400 transition-colors duration-200"
+              >
                 <div className="w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center">
                   <User className="h-4 w-4 text-white" />
                 </div>
@@ -118,7 +153,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                     MOD
                   </span>
                 )}
-              </div>
+              </button>
 
               {/* Timestamp */}
               <div className="flex items-center space-x-1">

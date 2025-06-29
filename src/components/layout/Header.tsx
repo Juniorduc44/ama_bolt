@@ -4,24 +4,30 @@
  */
 
 import React, { useState } from 'react';
-import { Globe, Search, User, LogOut, Settings, Wifi, WifiOff } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Globe, Search, User, LogOut, Settings, Wifi, WifiOff, Plus } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { isOfflineMode } from '../../lib/supabase';
 
 interface HeaderProps {
+  onAuthClick: () => void;
   onToggleOffline?: () => void;
   isOffline?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onToggleOffline, isOffline = false }) => {
+export const Header: React.FC<HeaderProps> = ({ onAuthClick, onToggleOffline, isOffline = false }) => {
   const { auth, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement search functionality
-    console.log('Searching for:', searchTerm);
+    if (searchTerm.trim()) {
+      // Navigate to global feed with search parameter
+      navigate(`/?search=${encodeURIComponent(searchTerm.trim())}`);
+    }
   };
 
   const handleSignOut = async () => {
@@ -33,18 +39,29 @@ export const Header: React.FC<HeaderProps> = ({ onToggleOffline, isOffline = fal
     }
   };
 
+  const handleLogoClick = () => {
+    navigate('/');
+  };
+
+  const handleAskQuestion = () => {
+    navigate('/ask');
+  };
+
   return (
     <header className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
+            <button
+              onClick={handleLogoClick}
+              className="flex items-center space-x-2 hover:opacity-80 transition-opacity duration-200"
+            >
               <Globe className="h-8 w-8 text-emerald-400" />
               <span className="text-xl font-bold text-white">
                 AMA <span className="text-emerald-400">Global</span>
               </span>
-            </div>
+            </button>
             
             {/* Offline Mode Indicator */}
             {(isOfflineMode() || isOffline) && (
@@ -66,13 +83,22 @@ export const Header: React.FC<HeaderProps> = ({ onToggleOffline, isOffline = fal
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="Search questions..."
+                placeholder="Search questions or usernames..."
               />
             </form>
           </div>
 
-          {/* User Menu */}
+          {/* Action Buttons and User Menu */}
           <div className="flex items-center space-x-4">
+            {/* Ask Question Button */}
+            <button
+              onClick={handleAskQuestion}
+              className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:block">Ask</span>
+            </button>
+
             {/* Offline Mode Toggle */}
             {onToggleOffline && (
               <button
@@ -121,6 +147,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleOffline, isOffline = fal
                       </p>
                     </div>
                     <button
+                      onClick={() => {
+                        navigate(`/${auth.user!.username}`);
+                        setShowUserMenu(false);
+                      }}
+                      className="flex items-center w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors duration-200"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      My Profile
+                    </button>
+                    <button
                       onClick={() => setShowUserMenu(false)}
                       className="flex items-center w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors duration-200"
                     >
@@ -138,11 +174,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleOffline, isOffline = fal
                 )}
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
-                <button className="text-slate-400 hover:text-white transition-colors duration-200">
-                  Sign In
-                </button>
-              </div>
+              <button
+                onClick={onAuthClick}
+                className="text-slate-400 hover:text-white transition-colors duration-200"
+              >
+                Sign In
+              </button>
             )}
           </div>
         </div>
