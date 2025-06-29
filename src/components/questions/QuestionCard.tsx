@@ -42,6 +42,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   };
 
+  const handleTagClick = (tag: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent any parent click handlers
+    navigate(`/tag/${encodeURIComponent(tag)}`);
+  };
+
   const timeAgo = formatDistanceToNow(new Date(question.created_at), { addSuffix: true });
 
   // Extract target username from title if it contains "(asked to @username)"
@@ -152,20 +157,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </div>
 
           {/* Question Content */}
-          <p className="text-slate-300 leading-relaxed mb-4 line-clamp-3">
-            {question.content}
-          </p>
+          {question.content && (
+            <p className="text-slate-300 leading-relaxed mb-4 line-clamp-3">
+              {question.content}
+            </p>
+          )}
 
           {/* Tags */}
           {question.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
               {question.tags.map((tag, index) => (
-                <span
+                <button
                   key={index}
-                  className="px-3 py-1 bg-slate-800 border border-slate-600 text-slate-300 text-sm rounded-full hover:bg-slate-700 transition-colors duration-200"
+                  onClick={(e) => handleTagClick(tag, e)}
+                  className="px-3 py-1 bg-slate-800 border border-slate-600 text-slate-300 text-sm rounded-full hover:bg-emerald-900/30 hover:border-emerald-600/50 hover:text-emerald-400 transition-all duration-200 cursor-pointer"
+                  title={`View all questions tagged with #${tag}`}
                 >
                   #{tag}
-                </span>
+                </button>
               ))}
             </div>
           )}

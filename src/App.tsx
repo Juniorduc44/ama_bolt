@@ -9,6 +9,7 @@ import { Header } from './components/layout/Header';
 import { GlobalFeed } from './pages/GlobalFeed';
 import { ProfilePage } from './pages/ProfilePage';
 import { AskQuestionPage } from './pages/AskQuestionPage';
+import { TagPage } from './pages/TagPage';
 import { AuthCallback } from './pages/AuthCallback';
 import { ResetPassword } from './pages/ResetPassword';
 import { AuthModal } from './components/auth/AuthModal';
@@ -60,6 +61,7 @@ function AppContent() {
               <Routes>
                 <Route path="/" element={<GlobalFeed />} />
                 <Route path="/ask" element={<AskQuestionPage />} />
+                <Route path="/tag/:tagName" element={<TagPage />} />
                 <Route path="/:username" element={<ProfilePage />} />
               </Routes>
             </main>
