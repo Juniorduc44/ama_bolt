@@ -21,12 +21,30 @@ export const GlobalFeed: React.FC = () => {
   // Filter questions based on search term
   const filteredQuestions = questions.filter(question => {
     const searchLower = searchTerm.toLowerCase();
-    return (
-      question.title.toLowerCase().includes(searchLower) ||
-      question.content.toLowerCase().includes(searchLower) ||
-      question.tags.some(tag => tag.toLowerCase().includes(searchLower)) ||
-      question.author?.username.toLowerCase().includes(searchLower)
-    );
+    
+    // Search in title and content
+    const titleMatch = question.title.toLowerCase().includes(searchLower);
+    const contentMatch = question.content.toLowerCase().includes(searchLower);
+    
+    // Search in tags
+    const tagMatch = question.tags.some(tag => tag.toLowerCase().includes(searchLower));
+    
+    // Search in author username - handle both direct username and @username format
+    const authorUsername = question.author?.username || '';
+    const usernameMatch = authorUsername.toLowerCase().includes(searchLower);
+    
+    // Also check for @username format in search
+    const atUsernameMatch = searchLower.startsWith('@') 
+      ? authorUsername.toLowerCase().includes(searchLower.slice(1))
+      : false;
+    
+    // Check if the question is directed to a specific user (from title parsing)
+    const targetUserMatch = question.title.match(/\(asked to @(\w+)\)$/);
+    const targetUsername = targetUserMatch ? targetUserMatch[1].toLowerCase() : '';
+    const targetMatch = targetUsername.includes(searchLower) || 
+                       (searchLower.startsWith('@') && targetUsername.includes(searchLower.slice(1)));
+
+    return titleMatch || contentMatch || tagMatch || usernameMatch || atUsernameMatch || targetMatch;
   });
 
   // Sort questions based on selected option
@@ -156,7 +174,7 @@ export const GlobalFeed: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-slate-700 rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              placeholder="Search questions or usernames..."
+              placeholder="Search questions, usernames, or @username..."
             />
           </div>
 
@@ -199,6 +217,17 @@ export const GlobalFeed: React.FC = () => {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Search Help Text */}
+      {searchTerm && (
+        <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-3">
+          <p className="text-slate-400 text-sm">
+            <span className="text-emerald-400 font-medium">Search tips:</span> 
+            {' '}Try searching for usernames like "john" or "@john", question content, or tags. 
+            Showing {filteredQuestions.length} result{filteredQuestions.length !== 1 ? 's' : ''} for "{searchTerm}".
+          </p>
         </div>
       )}
 
