@@ -83,43 +83,67 @@ export const useSearch = () => {
 
         if (usersError) throw usersError;
 
-        // Search questions with author information
+        // Search questions first, then get author profiles separately
         const { data: questions, error: questionsError } = await supabase
           .from('questions')
-          .select(`
-            *,
-            author:profiles!questions_author_id_fkey(*)
-          `)
+          .select('*')
           .or(`title.ilike.${searchPattern},content.ilike.${searchPattern},tags.cs.{${searchTerm}}`)
           .order('created_at', { ascending: false })
           .limit(20);
 
         if (questionsError) throw questionsError;
 
-        // Also search for questions where the author username matches
-        const { data: questionsByAuthor, error: authorQuestionsError } = await supabase
-          .from('questions')
-          .select(`
-            *,
-            author:profiles!questions_author_id_fkey(*)
-          `)
-          .eq('profiles.username', searchTerm)
-          .order('created_at', { ascending: false })
-          .limit(10);
+        // Get author profiles for the questions
+        let questionsWithAuthors = questions || [];
+        if (questions && questions.length > 0) {
+          const authorIds = [...new Set(questions.map(q => q.author_id).filter(Boolean))];
+          
+          if (authorIds.length > 0) {
+            const { data: profiles, error: profilesError } = await supabase
+              .from('profiles')
+              .select('*')
+              .in('id', authorIds);
 
-        if (authorQuestionsError) {
-          console.warn('Author questions search failed:', authorQuestionsError);
+            if (profilesError) {
+              console.warn('Failed to fetch author profiles:', profilesError);
+            } else {
+              questionsWithAuthors = questions.map(question => ({
+                ...question,
+                author: profiles?.find(profile => profile.id === question.author_id)
+              }));
+            }
+          }
+        }
+
+        // Search for questions by author username
+        let questionsByAuthor: any[] = [];
+        if (users && users.length > 0) {
+          const matchingUserIds = users.map(user => user.id);
+          
+          const { data: authorQuestions, error: authorQuestionsError } = await supabase
+            .from('questions')
+            .select('*')
+            .in('author_id', matchingUserIds)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+          if (authorQuestionsError) {
+            console.warn('Author questions search failed:', authorQuestionsError);
+          } else if (authorQuestions) {
+            questionsByAuthor = authorQuestions.map(question => ({
+              ...question,
+              author: users.find(user => user.id === question.author_id)
+            }));
+          }
         }
 
         // Combine and deduplicate questions
-        const allQuestions = [...(questions || [])];
-        if (questionsByAuthor) {
-          questionsByAuthor.forEach(q => {
-            if (!allQuestions.find(existing => existing.id === q.id)) {
-              allQuestions.push(q);
-            }
-          });
-        }
+        const allQuestions = [...questionsWithAuthors];
+        questionsByAuthor.forEach(q => {
+          if (!allQuestions.find(existing => existing.id === q.id)) {
+            allQuestions.push(q);
+          }
+        });
 
         const searchResults = {
           questions: allQuestions,
