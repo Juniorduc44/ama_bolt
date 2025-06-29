@@ -1,16 +1,16 @@
 /**
  * Authentication modal component
- * Handles user login and registration with form validation and magic link support
+ * Handles user login and registration with email/password as default for signup and expandable auth options
  */
 
 import React, { useState } from 'react';
-import { X, Globe, Mail, Lock, User, Zap, ArrowRight } from 'lucide-react';
+import { X, Globe, Mail, Lock, User, Zap, ArrowRight, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialMode?: 'signin' | 'signup' | 'magic';
+  initialMode?: 'signin' | 'signup';
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -18,7 +18,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = 'signin'
 }) => {
-  const [mode, setMode] = useState<'signin' | 'signup' | 'magic'>(initialMode);
+  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+  // Default to email for signup, magic for signin
+  const [authMethod, setAuthMethod] = useState<'magic' | 'email' | 'github'>(
+    initialMode === 'signup' ? 'email' : 'magic'
+  );
+  const [showAuthDropdown, setShowAuthDropdown] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -34,37 +39,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    // Email validation (required for all modes)
+    // Email validation (required for all methods)
     if (!formData.email) {
       newErrors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email is invalid';
     }
 
-    // Skip other validations for magic link mode
-    if (mode === 'magic') {
+    // Skip other validations for magic link method
+    if (authMethod === 'magic') {
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     }
 
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    // Username validation (signup only)
-    if (mode === 'signup') {
-      if (!formData.username) {
-        newErrors.username = 'Username is required';
-      } else if (formData.username.length < 3) {
-        newErrors.username = 'Username must be at least 3 characters';
+    // Password validation for email method
+    if (authMethod === 'email') {
+      if (!formData.password) {
+        newErrors.password = 'Password is required';
+      } else if (formData.password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters';
       }
 
-      // Confirm password validation
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match';
+      // Username validation (signup only)
+      if (mode === 'signup') {
+        if (!formData.username) {
+          newErrors.username = 'Username is required';
+        } else if (formData.username.length < 3) {
+          newErrors.username = 'Username must be at least 3 characters';
+        }
+
+        // Confirm password validation
+        if (formData.password !== formData.confirmPassword) {
+          newErrors.confirmPassword = 'Passwords do not match';
+        }
       }
     }
 
@@ -79,15 +86,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setLoading(true);
     try {
-      if (mode === 'magic') {
+      if (authMethod === 'magic') {
         await signInWithMagicLink(formData.email);
         setMagicLinkSent(true);
-      } else if (mode === 'signin') {
-        await signIn(formData.email, formData.password);
-        handleSuccess();
-      } else {
-        await signUp(formData.email, formData.password, formData.username);
-        handleSuccess();
+      } else if (authMethod === 'email') {
+        if (mode === 'signin') {
+          await signIn(formData.email, formData.password);
+          handleSuccess();
+        } else {
+          await signUp(formData.email, formData.password, formData.username);
+          handleSuccess();
+        }
       }
     } catch (error) {
       setErrors({ 
@@ -114,10 +123,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleModeChange = (newMode: 'signin' | 'signup' | 'magic') => {
+  const handleModeChange = (newMode: 'signin' | 'signup') => {
     setMode(newMode);
+    // Set default auth method based on mode
+    setAuthMethod(newMode === 'signup' ? 'email' : 'magic');
     setErrors({});
     setMagicLinkSent(false);
+  };
+
+  const handleAuthMethodChange = (method: 'magic' | 'email' | 'github') => {
+    setAuthMethod(method);
+    setShowAuthDropdown(false);
+    setErrors({});
+    setMagicLinkSent(false);
+  };
+
+  const getAuthMethodLabel = () => {
+    switch (authMethod) {
+      case 'magic':
+        return 'Magic Link';
+      case 'email':
+        return 'Email & Password';
+      case 'github':
+        return 'GitHub';
+      default:
+        return 'Email & Password';
+    }
+  };
+
+  const getAuthMethodIcon = () => {
+    switch (authMethod) {
+      case 'magic':
+        return <Zap className="h-4 w-4" />;
+      case 'email':
+        return <Mail className="h-4 w-4" />;
+      case 'github':
+        return <Globe className="h-4 w-4" />;
+      default:
+        return <Mail className="h-4 w-4" />;
+    }
   };
 
   if (!isOpen) return null;
@@ -164,8 +208,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="flex items-center space-x-2">
             <Globe className="h-6 w-6 text-emerald-400" />
             <h2 className="text-xl font-bold text-white">
-              {mode === 'magic' ? 'Quick Sign In' : 
-               mode === 'signin' ? 'Sign In' : 'Create Account'}
+              {mode === 'signin' ? 'Sign In' : 'Create Account'}
             </h2>
           </div>
           <button
@@ -176,47 +219,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
-        {/* Auth Mode Tabs */}
+        {/* Auth Method Selector */}
         <div className="px-6 pt-4">
-          <div className="flex space-x-1 bg-slate-800 rounded-lg p-1">
+          <div className="relative">
             <button
-              onClick={() => handleModeChange('magic')}
-              className={`flex-1 flex items-center justify-center space-x-2 py-2 px-3 rounded-md text-sm font-medium transition-colors duration-200 ${
-                mode === 'magic' 
-                  ? 'bg-emerald-600 text-white' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              onClick={() => setShowAuthDropdown(!showAuthDropdown)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white hover:bg-slate-700 transition-colors duration-200"
             >
-              <Zap className="h-4 w-4" />
-              <span>Magic Link</span>
+              <div className="flex items-center space-x-2">
+                {getAuthMethodIcon()}
+                <span className="font-medium">{getAuthMethodLabel()}</span>
+              </div>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showAuthDropdown ? 'rotate-180' : ''}`} />
             </button>
-            <button
-              onClick={() => handleModeChange('signin')}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors duration-200 ${
-                mode === 'signin' 
-                  ? 'bg-emerald-600 text-white' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => handleModeChange('signup')}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors duration-200 ${
-                mode === 'signup' 
-                  ? 'bg-emerald-600 text-white' 
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Sign Up
-            </button>
+
+            {/* Auth Method Dropdown */}
+            {showAuthDropdown && (
+              <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl">
+                <button
+                  onClick={() => handleAuthMethodChange('email')}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-slate-700 transition-colors duration-200 ${
+                    authMethod === 'email' ? 'bg-slate-700' : ''
+                  }`}
+                >
+                  <Mail className="h-4 w-4 text-blue-400" />
+                  <div>
+                    <div className="text-white font-medium">Email & Password</div>
+                    <div className="text-slate-400 text-sm">Traditional login method</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleAuthMethodChange('magic')}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-slate-700 transition-colors duration-200 ${
+                    authMethod === 'magic' ? 'bg-slate-700' : ''
+                  }`}
+                >
+                  <Zap className="h-4 w-4 text-emerald-400" />
+                  <div>
+                    <div className="text-white font-medium">Magic Link</div>
+                    <div className="text-slate-400 text-sm">Sign in with email link</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleAuthMethodChange('github')}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-slate-700 transition-colors duration-200 rounded-b-lg ${
+                    authMethod === 'github' ? 'bg-slate-700' : ''
+                  }`}
+                  disabled
+                >
+                  <Globe className="h-4 w-4 text-slate-500" />
+                  <div>
+                    <div className="text-slate-500 font-medium">GitHub (Coming Soon)</div>
+                    <div className="text-slate-500 text-sm">Sign in with GitHub</div>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Magic Link Description */}
-          {mode === 'magic' && (
+          {authMethod === 'magic' && (
             <div className="bg-emerald-900/20 border border-emerald-600/30 rounded-lg p-4 mb-4">
               <div className="flex items-start space-x-3">
                 <Zap className="h-5 w-5 text-emerald-400 mt-0.5" />
@@ -230,8 +295,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Username field (signup only) */}
-          {mode === 'signup' && (
+          {/* Username field (signup with email only) */}
+          {mode === 'signup' && authMethod === 'email' && (
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
                 Username
@@ -282,8 +347,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
           </div>
 
-          {/* Password fields (not for magic link) */}
-          {mode !== 'magic' && (
+          {/* Password fields (email method only) */}
+          {authMethod === 'email' && (
             <>
               {/* Password field */}
               <div>
@@ -305,119 +370,86 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     placeholder="Enter your password"
                   />
                 </div>
-                  {errors.password && (
-                    <p className="mt-1 text-sm text-red-400">{errors.password}</p>
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-400">{errors.password}</p>
+                )}
+              </div>
+
+              {/* Confirm password field (signup only) */}
+              {mode === 'signup' && (
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                      type="password"
+                      id="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                        errors.confirmPassword ? 'border-red-500' : 'border-slate-700'
+                      }`}
+                      placeholder="Confirm your password"
+                    />
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-sm text-red-400">{errors.confirmPassword}</p>
                   )}
                 </div>
+              )}
+            </>
+          )}
 
-                {/* Confirm password field (signup only) */}
-                {mode === 'signup' && (
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-300 mb-2">
-                      Confirm Password
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Lock className="h-5 w-5 text-slate-400" />
-                      </div>
-                      <input
-                        type="password"
-                        id="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg bg-slate-800 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
-                          errors.confirmPassword ? 'border-red-500' : 'border-slate-700'
-                        }`}
-                        placeholder="Confirm your password"
-                      />
-                    </div>
-                    {errors.confirmPassword && (
-                      <p className="mt-1 text-sm text-red-400">{errors.confirmPassword}</p>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
+          {/* Submit error */}
+          {errors.submit && (
+            <div className="p-3 bg-red-900/30 border border-red-600/30 rounded-lg">
+              <p className="text-sm text-red-400">{errors.submit}</p>
+            </div>
+          )}
 
-            {/* Submit error */}
-            {errors.submit && (
-              <div className="p-3 bg-red-900/30 border border-red-600/30 rounded-lg">
-                <p className="text-sm text-red-400">{errors.submit}</p>
+          {/* Submit button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+          >
+            {loading ? (
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span>
+                  {authMethod === 'magic' ? 'Sending magic link...' :
+                   mode === 'signin' ? 'Signing in...' : 'Creating account...'}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center space-x-2">
+                <span>
+                  {authMethod === 'magic' ? 'Send Magic Link' :
+                   mode === 'signin' ? 'Sign In' : 'Create Account'}
+                </span>
+                {authMethod === 'magic' && <ArrowRight className="h-4 w-4" />}
               </div>
             )}
+          </button>
+        </form>
 
-            {/* Submit button */}
+        {/* Footer */}
+        <div className="px-6 pb-6 text-center">
+          <p className="text-slate-400 text-sm">
+            {mode === 'signin' ? "Don't have an account? " : "Already have an account? "}
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+              onClick={() => handleModeChange(mode === 'signin' ? 'signup' : 'signin')}
+              className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
             >
-              {loading ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>
-                    {mode === 'magic' ? 'Sending magic link...' :
-                     mode === 'signin' ? 'Signing in...' : 'Creating account...'}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center space-x-2">
-                  <span>
-                    {mode === 'magic' ? 'Send Magic Link' :
-                     mode === 'signin' ? 'Sign In' : 'Create Account'}
-                  </span>
-                  {mode === 'magic' && <ArrowRight className="h-4 w-4" />}
-                </div>
-              )}
+              {mode === 'signin' ? 'Sign Up' : 'Sign In'}
             </button>
-          </form>
-
-          {/* Footer */}
-          <div className="px-6 pb-6 text-center">
-            <p className="text-slate-400 text-sm">
-              {mode === 'magic' ? 'Prefer traditional login? Switch to ' :
-               mode === 'signin' ? "Don't have an account? " : "Already have an account? "}
-              {mode !== 'magic' && (
-                <button
-                  onClick={() => handleModeChange('magic')}
-                  className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
-                >
-                  Magic Link
-                </button>
-              )}
-              {mode === 'magic' && (
-                <button
-                  onClick={() => handleModeChange('signin')}
-                  className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
-                >
-                  Sign In
-                </button>
-              )}
-              {mode === 'signin' && (
-                <>
-                  {' or '}
-                  <button
-                    onClick={() => handleModeChange('signup')}
-                    className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
-                  >
-                    Sign Up
-                  </button>
-                </>
-              )}
-              {mode === 'signup' && (
-                <>
-                  {' or '}
-                  <button
-                    onClick={() => handleModeChange('signin')}
-                    className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
-                  >
-                    Sign In
-                  </button>
-                </>
-              )}
-            </p>
-          </div>
+          </p>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};

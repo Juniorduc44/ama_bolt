@@ -9,30 +9,75 @@ import { Header } from './components/layout/Header';
 import { GlobalFeed } from './pages/GlobalFeed';
 import { ProfilePage } from './pages/ProfilePage';
 import { AskQuestionPage } from './pages/AskQuestionPage';
+import { AuthCallback } from './pages/AuthCallback';
+import { ResetPassword } from './pages/ResetPassword';
 import { AuthModal } from './components/auth/AuthModal';
+import { ProfileSetupModal } from './components/auth/ProfileSetupModal';
 import { useAuthProvider } from './hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
   const { auth } = useAuthProvider();
+
+  // Check if user needs to complete profile setup (magic link users)
+  useEffect(() => {
+    if (auth.user && !auth.loading) {
+      // Check if user has a default username (email prefix) and might want to customize it
+      const emailPrefix = auth.user.email.split('@')[0];
+      const hasDefaultUsername = auth.user.username === emailPrefix;
+      
+      // Show profile setup for new magic link users with default usernames
+      // You can add additional logic here to track if user has seen this modal
+      const hasSeenProfileSetup = localStorage.getItem(`profile_setup_${auth.user.id}`);
+      
+      if (hasDefaultUsername && !hasSeenProfileSetup) {
+        setShowProfileSetup(true);
+      }
+    }
+  }, [auth.user, auth.loading]);
+
+  const handleProfileSetupComplete = () => {
+    if (auth.user) {
+      localStorage.setItem(`profile_setup_${auth.user.id}`, 'true');
+    }
+    setShowProfileSetup(false);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <Header onAuthClick={() => setShowAuthModal(true)} />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Routes>
-          <Route path="/" element={<GlobalFeed />} />
-          <Route path="/ask" element={<AskQuestionPage />} />
-          <Route path="/:username" element={<ProfilePage />} />
-        </Routes>
-      </main>
+      <Routes>
+        {/* Auth callback routes (no header) */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
+        
+        {/* Main app routes (with header) */}
+        <Route path="/*" element={
+          <>
+            <Header onAuthClick={() => setShowAuthModal(true)} />
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <Routes>
+                <Route path="/" element={<GlobalFeed />} />
+                <Route path="/ask" element={<AskQuestionPage />} />
+                <Route path="/:username" element={<ProfilePage />} />
+              </Routes>
+            </main>
+          </>
+        } />
+      </Routes>
 
       {/* Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+      />
+
+      {/* Profile Setup Modal */}
+      <ProfileSetupModal
+        isOpen={showProfileSetup}
+        onClose={() => setShowProfileSetup(false)}
+        onComplete={handleProfileSetupComplete}
       />
 
       {/* Loading Overlay */}
@@ -51,10 +96,10 @@ function AppContent() {
 }
 
 function App() {
-  const { auth, signIn, signUp, signOut, AuthContext } = useAuthProvider();
+  const { auth, signIn, signUp, signInWithMagicLink, resetPassword, updateProfile, signOut, AuthContext } = useAuthProvider();
 
   return (
-    <AuthContext.Provider value={{ auth, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ auth, signIn, signUp, signInWithMagicLink, resetPassword, updateProfile, signOut }}>
       <Router>
         <AppContent />
       </Router>
