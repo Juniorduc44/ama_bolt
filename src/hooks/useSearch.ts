@@ -4,9 +4,10 @@
  */
 
 import { useState } from 'react';
-import { supabase, isOfflineMode } from '../lib/supabase';
+import { supabase, isOfflineMode, safeSupabaseOperation } from '../lib/supabase';
 import { offlineDB } from '../lib/offlineDB';
 import { Question, User } from '../types';
+import { useToast } from './useToast';
 
 interface SearchResults {
   questions: Question[];
@@ -22,6 +23,8 @@ export const useSearch = () => {
     loading: false,
     error: null
   });
+
+  const { warning } = useToast();
 
   const searchDatabase = async (searchTerm: string): Promise<SearchResults> => {
     if (!searchTerm.trim()) {
@@ -71,89 +74,135 @@ export const useSearch = () => {
         setResults(searchResults);
         return searchResults;
       } else {
-        // Online mode: search Supabase database
-        const searchPattern = `%${searchTerm}%`;
-        
-        // Search users
-        const { data: users, error: usersError } = await supabase
-          .from('profiles')
-          .select('*')
-          .or(`username.ilike.${searchPattern},email.ilike.${searchPattern}`)
-          .limit(10);
-
-        if (usersError) throw usersError;
-
-        // Search questions first, then get author profiles separately
-        const { data: questions, error: questionsError } = await supabase
-          .from('questions')
-          .select('*')
-          .or(`title.ilike.${searchPattern},content.ilike.${searchPattern},tags.cs.{${searchTerm}}`)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (questionsError) throw questionsError;
-
-        // Get author profiles for the questions
-        let questionsWithAuthors = questions || [];
-        if (questions && questions.length > 0) {
-          const authorIds = [...new Set(questions.map(q => q.author_id).filter(Boolean))];
+        // Online mode: use safe Supabase operation
+        const result = await safeSupabaseOperation(async () => {
+          const searchPattern = `%${searchTerm}%`;
           
-          if (authorIds.length > 0) {
-            const { data: profiles, error: profilesError } = await supabase
-              .from('profiles')
-              .select('*')
-              .in('id', authorIds);
+          // Search users
+          const { data: users, error: usersError } = await supabase!
+            .from('profiles')
+            .select('*')
+            .or(`username.ilike.${searchPattern},email.ilike.${searchPattern}`)
+            .limit(10);
 
-            if (profilesError) {
-              console.warn('Failed to fetch author profiles:', profilesError);
-            } else {
-              questionsWithAuthors = questions.map(question => ({
+          if (usersError) throw usersError;
+
+          // Search questions first, then get author profiles separately
+          const { data: questions, error: questionsError } = await supabase!
+            .from('questions')
+            .select('*')
+            .or(`title.ilike.${searchPattern},content.ilike.${searchPattern},tags.cs.{${searchTerm}}`)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+          if (questionsError) throw questionsError;
+
+          // Get author profiles for the questions
+          let questionsWithAuthors = questions || [];
+          if (questions && questions.length > 0) {
+            const authorIds = [...new Set(questions.map(q => q.author_id).filter(Boolean))];
+            
+            if (authorIds.length > 0) {
+              const { data: profiles, error: profilesError } = await supabase!
+                .from('profiles')
+                .select('*')
+                .in('id', authorIds);
+
+              if (profilesError) {
+                console.warn('Failed to fetch author profiles:', profilesError);
+              } else {
+                questionsWithAuthors = questions.map(question => ({
+                  ...question,
+                  author: profiles?.find(profile => profile.id === question.author_id)
+                }));
+              }
+            }
+          }
+
+          // Search for questions by author username
+          let questionsByAuthor: any[] = [];
+          if (users && users.length > 0) {
+            const matchingUserIds = users.map(user => user.id);
+            
+            const { data: authorQuestions, error: authorQuestionsError } = await supabase!
+              .from('questions')
+              .select('*')
+              .in('author_id', matchingUserIds)
+              .order('created_at', { ascending: false })
+              .limit(10);
+
+            if (authorQuestionsError) {
+              console.warn('Author questions search failed:', authorQuestionsError);
+            } else if (authorQuestions) {
+              questionsByAuthor = authorQuestions.map(question => ({
                 ...question,
-                author: profiles?.find(profile => profile.id === question.author_id)
+                author: users.find(user => user.id === question.author_id)
               }));
             }
           }
-        }
 
-        // Search for questions by author username
-        let questionsByAuthor: any[] = [];
-        if (users && users.length > 0) {
-          const matchingUserIds = users.map(user => user.id);
+          // Combine and deduplicate questions
+          const allQuestions = [...questionsWithAuthors];
+          questionsByAuthor.forEach(q => {
+            if (!allQuestions.find(existing => existing.id === q.id)) {
+              allQuestions.push(q);
+            }
+          });
+
+          return {
+            questions: allQuestions,
+            users: users || [],
+            loading: false,
+            error: null
+          };
+        }, null);
+
+        if (result) {
+          setResults(result);
+          return result;
+        } else {
+          // Fallback to offline search
+          warning(
+            'Search Offline',
+            'Unable to connect to server. Searching local data only.'
+          );
+
+          const [questions, users] = await Promise.all([
+            offlineDB.getQuestions(),
+            offlineDB.getUsers()
+          ]);
+
+          const searchLower = searchTerm.toLowerCase();
           
-          const { data: authorQuestions, error: authorQuestionsError } = await supabase
-            .from('questions')
-            .select('*')
-            .in('author_id', matchingUserIds)
-            .order('created_at', { ascending: false })
-            .limit(10);
+          const filteredUsers = users.filter(user =>
+            user.username.toLowerCase().includes(searchLower) ||
+            user.email.toLowerCase().includes(searchLower)
+          );
 
-          if (authorQuestionsError) {
-            console.warn('Author questions search failed:', authorQuestionsError);
-          } else if (authorQuestions) {
-            questionsByAuthor = authorQuestions.map(question => ({
-              ...question,
-              author: users.find(user => user.id === question.author_id)
-            }));
-          }
+          const questionsWithAuthors = questions.map(question => ({
+            ...question,
+            author: users.find(user => user.id === question.author_id)
+          }));
+
+          const filteredQuestions = questionsWithAuthors.filter(question => {
+            const titleMatch = question.title.toLowerCase().includes(searchLower);
+            const contentMatch = question.content.toLowerCase().includes(searchLower);
+            const tagMatch = question.tags.some(tag => tag.toLowerCase().includes(searchLower));
+            const authorMatch = question.author?.username.toLowerCase().includes(searchLower);
+            
+            return titleMatch || contentMatch || tagMatch || authorMatch;
+          });
+
+          const searchResults = {
+            questions: filteredQuestions,
+            users: filteredUsers,
+            loading: false,
+            error: null
+          };
+
+          setResults(searchResults);
+          return searchResults;
         }
-
-        // Combine and deduplicate questions
-        const allQuestions = [...questionsWithAuthors];
-        questionsByAuthor.forEach(q => {
-          if (!allQuestions.find(existing => existing.id === q.id)) {
-            allQuestions.push(q);
-          }
-        });
-
-        const searchResults = {
-          questions: allQuestions,
-          users: users || [],
-          loading: false,
-          error: null
-        };
-
-        setResults(searchResults);
-        return searchResults;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Search failed';

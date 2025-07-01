@@ -14,7 +14,19 @@ const hasValidCredentials = supabaseUrl &&
   supabaseAnonKey && 
   supabaseUrl !== 'your_supabase_url_here' && 
   supabaseAnonKey !== 'your_supabase_anon_key_here' &&
-  supabaseUrl.startsWith('https://');
+  supabaseUrl.startsWith('https://') &&
+  supabaseUrl.includes('.supabase.co');
+
+// Get the correct redirect URL based on environment
+const getRedirectUrl = () => {
+  // In production (Netlify), use the deployed URL
+  if (import.meta.env.PROD) {
+    return 'https://ama-global.netlify.app';
+  }
+  
+  // In development, use localhost
+  return 'http://localhost:5173';
+};
 
 // Create Supabase client instance with proper configuration for network access
 export const supabase = hasValidCredentials 
@@ -41,6 +53,13 @@ export const supabase = hasValidCredentials
  * This allows for private network events without internet connectivity
  */
 export const isOfflineMode = (): boolean => {
+  // Check localStorage for user preference first
+  const savedOfflineMode = localStorage.getItem('ama_offline_mode');
+  if (savedOfflineMode !== null) {
+    return JSON.parse(savedOfflineMode);
+  }
+  
+  // Fall back to environment variable or credential check
   return import.meta.env.VITE_OFFLINE_MODE === 'true' || !hasValidCredentials;
 };
 
@@ -52,15 +71,42 @@ export const isSupabaseConfigured = (): boolean => {
 };
 
 /**
- * Get a safe Supabase client that throws helpful errors when not configured
+ * Get a safe Supabase client that returns null when not configured
+ * This prevents network requests when running in offline mode
  */
 export const getSupabaseClient = () => {
-  if (!supabase) {
-    throw new Error(
-      'Supabase is not configured. Please set up your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.'
-    );
+  if (!hasValidCredentials) {
+    console.warn('Supabase not configured - running in offline mode');
+    return null;
   }
   return supabase;
+};
+
+/**
+ * Safe wrapper for Supabase operations that handles offline mode
+ */
+export const safeSupabaseOperation = async <T>(
+  operation: () => Promise<T>,
+  fallback: T
+): Promise<T> => {
+  if (!hasValidCredentials || isOfflineMode()) {
+    console.warn('Supabase not available - using fallback data');
+    return fallback;
+  }
+  
+  try {
+    return await operation();
+  } catch (error) {
+    console.error('Supabase operation failed:', error);
+    return fallback;
+  }
+};
+
+/**
+ * Get the correct redirect URL for auth callbacks
+ */
+export const getAuthRedirectUrl = (path: string = '/auth/callback') => {
+  return `${getRedirectUrl()}${path}`;
 };
 
 /**

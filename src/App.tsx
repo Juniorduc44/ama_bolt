@@ -24,8 +24,9 @@ import { useState, useEffect } from 'react';
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const { auth } = useAuthProvider();
-  const { toasts, removeToast } = useToast();
+  const { toasts, removeToast, warning } = useToast();
 
   // Check if user needs to complete profile setup (magic link users)
   useEffect(() => {
@@ -44,11 +45,40 @@ function AppContent() {
     }
   }, [auth.user, auth.loading]);
 
+  // Initialize offline mode from environment or localStorage
+  useEffect(() => {
+    const savedOfflineMode = localStorage.getItem('ama_offline_mode');
+    const envOfflineMode = import.meta.env.VITE_OFFLINE_MODE === 'true';
+    
+    if (savedOfflineMode !== null) {
+      setIsOffline(JSON.parse(savedOfflineMode));
+    } else {
+      setIsOffline(envOfflineMode);
+    }
+  }, []);
+
+  // Save offline mode preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('ama_offline_mode', JSON.stringify(isOffline));
+    
+    // Show toast when switching modes
+    if (isOffline) {
+      warning(
+        'Offline Mode Active',
+        'Some features may be limited. Data will sync when you go back online.'
+      );
+    }
+  }, [isOffline, warning]);
+
   const handleProfileSetupComplete = () => {
     if (auth.user) {
       localStorage.setItem(`profile_setup_${auth.user.id}`, 'true');
     }
     setShowProfileSetup(false);
+  };
+
+  const toggleOfflineMode = () => {
+    setIsOffline(prev => !prev);
   };
 
   return (
@@ -64,7 +94,11 @@ function AppContent() {
         {/* Main app routes (with header) */}
         <Route path="/*" element={
           <>
-            <Header onAuthClick={() => setShowAuthModal(true)} />
+            <Header 
+              onAuthClick={() => setShowAuthModal(true)}
+              onToggleOffline={toggleOfflineMode}
+              isOffline={isOffline}
+            />
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <Routes>
                 <Route path="/" element={<GlobalFeed />} />
@@ -94,9 +128,9 @@ function AppContent() {
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
-      {/* Loading Overlay */}
-      {auth.loading && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      {/* Minimal Loading Overlay - only show for initial load */}
+      {auth.loading && !auth.user && (
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
           <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
             <div className="flex items-center space-x-3">
               <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>

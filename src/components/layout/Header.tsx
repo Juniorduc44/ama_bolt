@@ -33,6 +33,10 @@ export const Header: React.FC<HeaderProps> = ({ onAuthClick, onToggleOffline, is
     navigate('/');
   };
 
+  // Show user info immediately if available, don't wait for loading to complete
+  const showUserInfo = auth.user && !auth.loading;
+  const showSignInButton = !auth.user && !auth.loading;
+
   return (
     <header className="bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -85,7 +89,8 @@ export const Header: React.FC<HeaderProps> = ({ onAuthClick, onToggleOffline, is
               </button>
             )}
 
-            {auth.user ? (
+            {/* User Menu or Sign In Button */}
+            {showUserInfo ? (
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
@@ -134,13 +139,16 @@ export const Header: React.FC<HeaderProps> = ({ onAuthClick, onToggleOffline, is
                   </div>
                 )}
               </div>
-            ) : (
+            ) : showSignInButton ? (
               <button
                 onClick={onAuthClick}
                 className="text-slate-400 hover:text-white transition-colors duration-200"
               >
                 Sign In
               </button>
+            ) : (
+              // Show a minimal loading state only during initial auth check
+              <div className="w-20 h-8 bg-slate-800 rounded animate-pulse"></div>
             )}
           </div>
         </div>

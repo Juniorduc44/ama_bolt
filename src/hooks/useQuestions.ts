@@ -5,16 +5,18 @@
  */
 
 import { useState, useEffect } from 'react';
-import { supabase, isOfflineMode } from '../lib/supabase';
+import { supabase, isOfflineMode, safeSupabaseOperation } from '../lib/supabase';
 import { offlineDB } from '../lib/offlineDB';
 import { Question } from '../types';
 import { useAuth } from './useAuth';
+import { useToast } from './useToast';
 
 export const useQuestions = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { auth } = useAuth();
+  const { warning, error: showError } = useToast();
 
   // Load questions on component mount
   useEffect(() => {
@@ -39,10 +41,10 @@ export const useQuestions = () => {
 
         setQuestions(questionsWithAuthors);
       } else {
-        // Online mode: load from Supabase with fallback to offline
-        try {
+        // Online mode: use safe Supabase operation with fallback
+        const result = await safeSupabaseOperation(async () => {
           // First get questions
-          const { data: questionsData, error: questionsError } = await supabase
+          const { data: questionsData, error: questionsError } = await supabase!
             .from('questions')
             .select('*')
             .order('created_at', { ascending: false });
@@ -54,7 +56,7 @@ export const useQuestions = () => {
           
           let profilesData = [];
           if (authorIds.length > 0) {
-            const { data: profiles, error: profilesError } = await supabase
+            const { data: profiles, error: profilesError } = await supabase!
               .from('profiles')
               .select('*')
               .in('id', authorIds);
@@ -64,33 +66,36 @@ export const useQuestions = () => {
           }
 
           // Combine questions with author profiles
-          const questionsWithAuthors = questionsData?.map(question => ({
+          return questionsData?.map(question => ({
             ...question,
             author: question.author_id ? profilesData.find(profile => profile.id === question.author_id) : null
           })) || [];
+        }, []);
 
-          setQuestions(questionsWithAuthors);
-        } catch (supabaseError) {
-          // If Supabase fails, fall back to offline mode
-          console.warn('Supabase connection failed, falling back to offline mode:', supabaseError);
+        if (Array.isArray(result)) {
+          setQuestions(result);
+        } else {
+          // Fallback failed, try offline mode
+          warning(
+            'Connection Issues',
+            'Unable to connect to server. Loading offline data.'
+          );
           
           const offlineQuestions = await offlineDB.getQuestions();
           const users = await offlineDB.getUsers();
           
-          // Attach author information
           const questionsWithAuthors = offlineQuestions.map(question => ({
             ...question,
             author: users.find(user => user.id === question.author_id)
           }));
 
           setQuestions(questionsWithAuthors);
-          
-          // Set a warning message instead of an error
-          setError('Running in offline mode - some features may be limited');
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load questions');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load questions';
+      setError(errorMessage);
+      showError('Error Loading Questions', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -125,9 +130,9 @@ export const useQuestions = () => {
         setQuestions(prev => [{ ...newQuestion, author: auth.user }, ...prev]);
         return newQuestion;
       } else {
-        // Online mode: save to Supabase with fallback to offline
-        try {
-          const { data, error } = await supabase
+        // Online mode: use safe Supabase operation with fallback
+        const result = await safeSupabaseOperation(async () => {
+          const { data, error } = await supabase!
             .from('questions')
             .insert([questionData])
             .select('*')
@@ -138,7 +143,7 @@ export const useQuestions = () => {
           // Get the author profile for the new question (if authenticated)
           let authorProfile = null;
           if (auth.user) {
-            const { data: profile } = await supabase
+            const { data: profile } = await supabase!
               .from('profiles')
               .select('*')
               .eq('id', auth.user.id)
@@ -146,34 +151,40 @@ export const useQuestions = () => {
             authorProfile = profile;
           }
 
-          const questionWithAuthor = {
+          return {
             ...data,
             author: authorProfile
           };
-          
-          setQuestions(prev => [questionWithAuthor, ...prev]);
-          return questionWithAuthor;
-        } catch (supabaseError) {
-          // If Supabase fails, fall back to offline mode
-          console.warn('Supabase connection failed, saving offline:', supabaseError);
+        }, null);
+
+        if (result) {
+          setQuestions(prev => [result, ...prev]);
+          return result;
+        } else {
+          // Fallback to offline mode
+          warning(
+            'Saved Offline',
+            'Question saved locally. It will sync when connection is restored.'
+          );
           
           const newQuestion = await offlineDB.saveQuestion(questionData);
           setQuestions(prev => [{ ...newQuestion, author: auth.user }, ...prev]);
-          
-          // Set a warning message
-          setError('Question saved offline - will sync when connection is restored');
           return newQuestion;
         }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create question';
       setError(errorMessage);
+      showError('Error Creating Question', errorMessage);
       throw new Error(errorMessage);
     }
   };
 
   const voteOnQuestion = async (questionId: string, voteType: 'up' | 'down') => {
-    if (!auth.user) throw new Error('Must be logged in to vote');
+    if (!auth.user) {
+      showError('Authentication Required', 'Please sign in to vote on questions');
+      throw new Error('Must be logged in to vote');
+    }
 
     try {
       setError(null);
@@ -210,23 +221,29 @@ export const useQuestions = () => {
           return q;
         });
         
-        // Save updated questions (in a real app, this would be more sophisticated)
         localStorage.setItem('offline_questions', JSON.stringify(updatedQuestions));
         loadQuestions(); // Refresh display
       } else {
-        // Online mode: handle voting through Supabase with fallback
-        try {
-          const { error } = await supabase.rpc('vote_on_question', {
+        // Online mode: use safe Supabase operation with fallback
+        const result = await safeSupabaseOperation(async () => {
+          const { error } = await supabase!.rpc('vote_on_question', {
             question_id: questionId,
-            user_id: auth.user.id,
+            user_id: auth.user!.id,
             vote_type: voteType
           });
 
           if (error) throw error;
+          return true;
+        }, false);
+
+        if (result) {
           loadQuestions(); // Refresh questions
-        } catch (supabaseError) {
-          // If Supabase fails, fall back to offline voting
-          console.warn('Supabase voting failed, using offline mode:', supabaseError);
+        } else {
+          // Fallback to offline voting
+          warning(
+            'Vote Saved Offline',
+            'Your vote has been saved locally and will sync when connection is restored.'
+          );
           
           const votes = await offlineDB.getVotes();
           const existingVote = votes.find(
@@ -257,12 +274,12 @@ export const useQuestions = () => {
           
           localStorage.setItem('offline_questions', JSON.stringify(updatedQuestions));
           loadQuestions();
-          
-          setError('Vote saved offline - will sync when connection is restored');
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to vote');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to vote';
+      setError(errorMessage);
+      showError('Error Voting', errorMessage);
       throw err;
     }
   };
