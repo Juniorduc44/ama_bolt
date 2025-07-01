@@ -1,0 +1,21 @@
+# Netlify redirects for SPA routing
+/*    /index.html   200
+
+# Handle auth callbacks
+/auth/callback    /index.html   200
+/auth/reset-password    /index.html   200
+
+# Handle share pages
+/share/*    /index.html   200
+
+# Handle user profiles
+/*/    /index.html   200
+
+# Handle question pages
+/question/*    /index.html   200
+
+# Handle tag pages
+/tag/*    /index.html   200
+
+# Handle ask page
+/ask    /index.html   200
